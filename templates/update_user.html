@@ -1,0 +1,27 @@
+{% include "header.html" %}
+<body>
+<div class="layeredBox formCard">
+<form action="{{ url_for('update_user') }}" method="post" class="formContent">
+  {{ form.csrf_token }}
+  <h1>Update Details</h1>
+  <label class="formLabel">
+    {{ form.username.label.text }}
+  </label>
+  {{ form.username }}
+  <label class="formLabel">
+  {{ form.password.label.text }}
+    </label>
+  {{ form.password }}
+  <label class="formLabel">
+  {{ form.re_enter_pass.label.text }}
+  </label>
+  {{ form.re_enter_pass }}
+  <br/>
+  {{ form.submit_user }}
+  <br/>
+  <br/>
+  <br/>
+</form>
+</div>
+</body>
+{% include "footer.html" %}

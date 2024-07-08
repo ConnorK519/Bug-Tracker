@@ -1,0 +1,68 @@
+{% include "header.html" %}
+<body>
+<div class="container">
+ <div class="card layeredBox">
+     <div style="background-color: lightblue; width: 100%; display: flex;">
+        <h3 style="margin-left: 1rem; color: white; white-space: nowrap">Project name: {{ project.title }}</h3>
+             <div class="headerBox">
+                 {% if current_user.id == project.manager_id: %}
+         <a href="{{ url_for('update_project', project_id=project.id) }}" class="navLinks" style="align-items: center;">Edit Project</a>
+            <a href="{{ url_for('delete_project_by_id', project_id=project.id) }}" class="navLinks" style="align-items: center;">Delete Project</a>
+         {% endif %}
+         </div>
+     </div>
+     <p style="margin: 1.2rem; text-wrap: pretty;">
+         Posted: {{ project.date_posted }} By: {{ project.manager.username }}
+         <br/>
+         <br/>
+         {{ project.description }}
+             <br/>
+         <br/>
+     </p>
+         <ul style="margin-left: 1.2rem; text-wrap: pretty;">
+             Languages:
+         {% for language in languages_used: %}
+     {% if language: %}
+     <li>
+         {{ language }}
+     </li>
+     {% endif %}
+         {% endfor %}
+     </ul>
+     <br/>
+         <ul style="margin-left: 1.2rem; text-wrap: pretty;">
+             Frameworks/Libraries:
+         {% for framework_or_library in frameworks_or_libraries: %}
+     {% if framework_or_library: %}
+     <li>
+         {{ framework_or_library }}
+     </li>
+     {% endif %}
+         {% endfor %}
+     </ul>
+     <div style="margin: 1.2rem; text-wrap: pretty;" class="cardLinks">
+         {% if project.hosted_url: %}
+            <a href="{{ project.hosted_url }}" target='_blank' class="card_links">Hosted project</a>
+            {% else: %}
+            No link to hosted project
+            {% endif %}
+            -----
+            <a href="{{ project.repo_url }}" target='_blank' class="card_links">Project repo</a>
+     </div>
+    </div>
+    <form action="{{ url_for('project_page', project_id=project.id, ) }}" method="post" class="searchBar card layeredBox" style="margin-top: 1rem; margin-bottom: 1rem; display: flex; flex-direction: row; justify-content: center;">
+{{ form.csrf_token }}
+{{ form.search }}
+    {{ form.submit_search }}
+</form>
+    <div class="card layeredBox" style="height: 3rem; align-items: center; position: relative; display: flex; flex-shrink: 0; align-items: center; text-align: center;">
+        <a style="width: 100%; text-align: center;" href="{{ url_for('post_bug', project_id=project.id) }}">
+        Post Bug
+        </a>
+    </div>
+    {% for bug in project.bugs: %}
+    {% include "bug_template.html" %}
+    {% endfor %}
+</div>
+</body>
+{% include "footer.html" %}

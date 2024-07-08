@@ -1,0 +1,14 @@
+{% include "header.html" %}
+<body>
+<div class="container">
+<form action="/" method="post" class="searchBar card layeredBox" style="margin-top: 1rem; margin-bottom: 1rem; display: flex; flex-direction: row; justify-content: center;">
+{{ form.csrf_token }}
+{{ form.search }}
+    {{ form.submit_search }}
+</form>
+    {% for project in projects: %}
+    {% include "project_template.html" %}
+    {% endfor %}
+</div>
+</body>
+{% include "footer.html" %}

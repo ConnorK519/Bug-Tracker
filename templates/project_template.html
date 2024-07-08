@@ -1,0 +1,22 @@
+ <div class="card layeredBox">
+     <div style=" background-color: lightblue; width: 100%;">
+        <h2 style="margin: 1.2rem; color: white;">Project name: {{ project.title }}</h2>
+     </div>
+     <p style="margin: 1.2rem; text-wrap: pretty;">
+         Posted: {{ project.date_posted }} By: {{ project.manager.username }}
+         <br/>
+         <br/>
+         {{ project.description }}
+     </p>
+     <div style="margin: 1.2rem; text-wrap: pretty;" class="cardLinks">
+         {% if project.hosted_url: %}
+            <a href="{{ project.hosted_url }}" target='_blank' class="card_links">Hosted project</a>
+            {% else: %}
+            No link to hosted project
+            {% endif %}
+            -----
+            <a href="{{ project.repo_url }}" target='_blank' class="card_links">Project repo</a>
+            -----
+            <a href="{{ url_for('project_page', project_id=project.id) }}" class="card_links">Project and Bugs</a>
+     </div>
+    </div>

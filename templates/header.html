@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Tracker</title>
+    {% block styles %}
+        <link
+      rel="icon"
+      type="image/x-icon"
+      href="{{ url_for('static', filename='assets/icons8-moth-64.png') }}"
+    />
+     <link
+      href="{{ url_for('static', filename='css/styles.css') }}"
+      rel="stylesheet"
+    />
+    {% endblock %}
+</head>
+<body>
+<header>
+    <a href="{{ url_for('home_page') }}">
+    <img src="{{ url_for('static', filename='assets/img/moth.png') }}" class="logo"/>
+    </a>
+    <a href="{{ url_for('home_page') }}" class="title navLinks">
+    Bug Tracker
+    </a>
+    {% if current_user.is_authenticated: %}
+    <p class="loggedIn">Logged in as:{{ current_user.username }}</p>
+      <p class="headerBox">
+          <a href="{{ url_for('update_user') }}" style="margin: 0.8rem;" class="navLinks">Update Account</a>
+        <a href="{{ url_for('delete_user') }}" style="margin: 0.8rem; margin-right: 2rem;" class="navLinks">Delete Account</a>
+    </p>
+     {% endif %}
+</header>
+<nav>
+    {% if not current_user.is_authenticated: %}
+    <a href="{{ url_for('register') }}" class="navLinks">
+        Register
+    </a>
+    <a href="{{ url_for('login') }}" class="navLinks">
+        Log in
+    </a>
+    {% else %}
+    <a href="{{ url_for('logout') }}" class="navLinks">
+        Log out
+    </a>
+    <a href="{{ url_for('reports_by_user_id') }}" class="navLinks">
+        My reports
+    </a>
+     <a href="{{ url_for('projects_by_user_id') }}" class="navLinks">
+        My projects
+    </a>
+      <a href="{{ url_for('post_project') }}" class="navLinks">
+        Post project
+    </a>
+    {% endif %}
+</nav>
+</body>
+</html>

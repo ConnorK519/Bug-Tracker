@@ -1,0 +1,21 @@
+{% include "header.html" %}
+<body>
+<div class="container">
+{% if has_reported: %}
+{% for report in reports: %}
+    <div class="card layeredBox">
+        <h2 style="margin-left: 1.5rem;">{{ report.title }}</h2>
+        <p style="margin-left: 1.5rem; text-wrap: pretty;">
+            {{ report.description }}
+            <br/>
+            <br/>
+            posted: {{ report.date_posted }}
+        </p>
+    </div>
+{% endfor %}
+{% else: %}
+
+{% endif %}
+</div>
+</body>
+{% include "footer.html" %}

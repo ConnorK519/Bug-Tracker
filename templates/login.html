@@ -1,0 +1,23 @@
+{% include "header.html" %}
+<body>
+<div class="layeredBox formCard">
+<form action="{{ url_for('login') }}" method="post" class="formContent">
+  {{ form.csrf_token }}
+  <h1>Log in</h1>
+  <label class="formLabel">
+  {{ form.username.label.text }}
+  </label>
+  {{ form.username }}
+  <label class="formLabel">
+  {{ form.password.label.text }}
+  </label>
+  {{ form.password }}
+  <br/>
+  {{ form.submit_login }}
+  <br/>
+  <br/>
+  <br/>
+</form>
+</div>
+</body>
+{% include "footer.html" %}

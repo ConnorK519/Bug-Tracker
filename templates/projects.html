@@ -1,0 +1,9 @@
+{% include "header.html" %}
+<body>
+<div class="container">
+  {% for project in projects: %}
+    {% include "project_template.html" %}
+    {% endfor %}
+</div>
+</body>
+{% include "footer.html" %}

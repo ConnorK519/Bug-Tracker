@@ -1,0 +1,11 @@
+{% include "header.html" %}
+<body>
+<div class="container">
+    <form action="{{ url_for('invite_user_to_project', project_id=project_id, ) }}" method="post" class="searchBar card layeredBox" style="margin-top: 1rem; margin-bottom: 1rem; display: flex; flex-direction: row; justify-content: center;">
+{{ form.csrf_token }}
+{{ form.search }}
+        {{ form.submit_search }}
+</form>
+</div>
+</body>
+{% include "footer.html" %}

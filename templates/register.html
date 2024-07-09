@@ -5,20 +5,25 @@
   {{ form.csrf_token }}
   <h1>Sign Up</h1>
   <label class="formLabel">
-    {{ form.username.label.text }}
+    {{ form.username.label.text }}*
   </label>
   {{ form.username }}
+    <label class="formLabel">
+  {{ form.user_bio.label.text }}
+    </label>
+  {{ form.user_bio }}
   <label class="formLabel">
-  {{ form.password.label.text }}
+  {{ form.password.label.text }}*
     </label>
   {{ form.password }}
   <label class="formLabel">
-  {{ form.re_enter_pass.label.text }}
+  {{ form.re_enter_pass.label.text }}*
   </label>
   {{ form.re_enter_pass }}
   <br/>
   {{ form.submit_user }}
   <br/>
+  <p>* = Required Field</p>
   <br/>
   <br/>
 </form>

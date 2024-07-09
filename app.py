@@ -4,15 +4,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import desc
 from forms import RegisterForm, LoginForm, SearchForm, PostProjectForm, PostBugForm
 from datetime import datetime
-from models import db, Bug, Project, User
+from models import db, Bug, Project, User, Role, UserRole
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+load_dotenv(".env.dev")
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
 db.init_app(app)
 
@@ -26,8 +25,19 @@ def load_user(user_id):
 
 
 with app.app_context():
-    db.drop_all()
     db.create_all()
+    roles = db.session.execute(db.select(Role)).scalars().all()
+    if not len(roles):
+        roles = [
+            Role(name="tester", update_status=False, update_priority=False, delete_bug=False,
+                 delete_members_from_project=False),
+            Role(name="developer", update_status=True, update_priority=False, delete_bug=False,
+                 delete_members_from_project=False),
+            Role(name="admin", update_status=True, update_priority=True, delete_bug=True,
+                 delete_members_from_project=True)
+        ]
+        db.session.add_all(roles)
+        db.session.commit()
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -43,7 +53,17 @@ def home_page():
     return render_template("index.html", form=form, projects=projects, is_projects=is_projects)
 
 
+# ----------------------------------------------------------------------------------------------
+
 # User endpoints
+
+# ----------------------------------------------------------------------------------------------
+
+
+@app.route("/users", methods=["GET", "POST"])
+@login_required
+def get_users():
+    users = db.session.execute(db.select(User.id, User.username, User.user_bio)).scalars().all()
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -59,22 +79,12 @@ def register():
         if password != re_enter_pass:
             return redirect(url_for("register"))
         hashed_password = generate_password_hash(password)
-        new_user = User(username=username, hashed_password=hashed_password)
+        new_user = User(username=username, user_bio=form.user_bio.data, hashed_password=hashed_password)
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)
         return redirect(url_for("home_page"))
     return render_template("register.html", form=form)
-
-
-@app.route("/user/delete-account")
-@login_required
-def delete_user():
-    user = current_user
-    db.session.delete(user)
-    db.session.commit()
-    logout_user()
-    return redirect(url_for("home_page"))
 
 
 @app.route("/user/update-account", methods=["GET", "POST"])
@@ -88,6 +98,7 @@ def update_user():
             if existing_user:
                 return redirect(url_for("update_user"))
             current_user.username = form.username.data
+            current_user.user_bio = form.user_bio.data
         if form.password.data != form.re_enter_pass.data:
             return redirect(url_for("update_user"))
         if form.password.data:
@@ -96,6 +107,7 @@ def update_user():
         db.session.commit()
         return redirect(url_for("home_page"))
     form.username.data = current_user.username
+    form.user_bio.data = current_user.user_bio
     return render_template("update_user.html", form=form)
 
 
@@ -112,13 +124,6 @@ def login():
                 return redirect(url_for("home_page"))
         return redirect(url_for("login"))
     return render_template("login.html", form=form)
-
-
-@app.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for("home_page"))
 
 
 @app.route("/reports")
@@ -141,7 +146,40 @@ def projects_by_user_id():
     return render_template("projects.html", projects=projects, is_projects=is_projects)
 
 
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("home_page"))
+
+
+@app.route("/user/delete-account")
+@login_required
+def delete_user():
+    user = current_user
+    db.session.delete(user)
+    db.session.commit()
+    logout_user()
+    return redirect(url_for("home_page"))
+
+
+# ----------------------------------------------------------------------------------------------
+
 # Project endpoints
+
+# ----------------------------------------------------------------------------------------------
+
+
+@app.route("/search-projects/<search>", methods=["GET", "POST"])
+def search_projects(search):
+    form = SearchForm()
+    projects = db.session.execute(
+        db.select(Project).where(Project.title.like(search) | Project.description.like(search)).order_by(
+            desc(Project.date_posted))).scalars().all()
+    is_projects = False
+    if len(projects):
+        is_projects = True
+    return render_template("index.html", form=form, projects=projects, is_projects=is_projects)
 
 
 @app.route("/project/<int:project_id>", methods=["GET", "POST"])
@@ -157,7 +195,34 @@ def project_page(project_id):
                            frameworks_or_libraries=frameworks_or_libraries, form=form)
 
 
+@app.route("/projects/add-new-project", methods=["GET", "POST"])
+@login_required
+def post_project():
+    form = PostProjectForm()
+    if form.validate_on_submit():
+        manager_id = current_user.id
+        title = form.title.data
+        description = form.description.data
+        languages_used = "~|,-%-,|~".join(form.languages_used.data)
+        frameworks_or_libraries = "~|,-%-,|~".join(form.frameworks_or_libraries.data)
+        hosted_url = form.hosted_url.data
+        repo_url = form.repo_url.data
+        date_posted = datetime.now().date()
+        existing_project = db.session.execute(db.select(Project).where(Project.title == title)).scalar()
+        if existing_project:
+            return render_template("new_project.html", form=form)
+        new_project = Project(manager_id=manager_id, title=title, description=description,
+                              languages_used=languages_used, frameworks_or_libraries=frameworks_or_libraries,
+                              hosted_url=hosted_url,
+                              repo_url=repo_url, date_posted=date_posted)
+        db.session.add(new_project)
+        db.session.commit()
+        return redirect(url_for("home_page"))
+    return render_template("new_project.html", form=form)
+
+
 @app.route("/project/<int:project_id>/update", methods=["GET", "POST"])
+@login_required
 def update_project(project_id):
     form = PostProjectForm()
     project_to_update = db.get_or_404(Project, project_id)
@@ -182,18 +247,6 @@ def update_project(project_id):
     return render_template("update_project.html", project_id=project_id, form=form)
 
 
-@app.route("/search-projects/<search>", methods=["GET", "POST"])
-def search_projects(search):
-    form = SearchForm()
-    projects = db.session.execute(
-        db.select(Project).where(Project.title.like(search) | Project.description.like(search)).order_by(
-            desc(Project.date_posted))).scalars().all()
-    is_projects = False
-    if len(projects):
-        is_projects = True
-    return render_template("index.html", form=form, projects=projects, is_projects=is_projects)
-
-
 @app.route("/delete-project/<int:project_id>")
 @login_required
 def delete_project_by_id(project_id):
@@ -204,6 +257,12 @@ def delete_project_by_id(project_id):
         return redirect(url_for("home_page"))
 
 
+# ----------------------------------------------------------------------------------------------
+
+# Bug endpoints
+
+# ----------------------------------------------------------------------------------------------
+
 @app.route("/project/<int:project_id>/<search>")
 def project_page_search(project_id, search):
     form = SearchForm()
@@ -211,32 +270,6 @@ def project_page_search(project_id, search):
     bugs = [bug for bug in project.bugs if search in bug.title or search in bug.description]
     project.bugs = bugs
     return render_template("project_page.html", project=project, form=form)
-
-
-@app.route("/projects/add-new-project", methods=["GET", "POST"])
-@login_required
-def post_project():
-    form = PostProjectForm()
-    if form.validate_on_submit():
-        manager_id = current_user.id
-        title = form.title.data
-        description = form.description.data
-        languages_used = "~|,-%-,|~".join(form.languages_used.data)
-        frameworks_or_libraries = "~|,-%-,|~".join(form.frameworks_or_libraries.data)
-        hosted_url = form.hosted_url.data
-        repo_url = form.repo_url.data
-        date_posted = datetime.now().date()
-        new_project = Project(manager_id=manager_id, title=title, description=description,
-                              languages_used=languages_used, frameworks_or_libraries=frameworks_or_libraries,
-                              hosted_url=hosted_url,
-                              repo_url=repo_url, date_posted=date_posted)
-        db.session.add(new_project)
-        db.session.commit()
-        return redirect(url_for("home_page"))
-    return render_template("new_project.html", form=form)
-
-
-# Bug endpoints
 
 
 @app.route("/projects/<project_id>/post-bug", methods=["GET", "POST"])

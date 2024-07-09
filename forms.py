@@ -1,11 +1,11 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, PasswordField, FieldList, FormField
+from wtforms import StringField, SubmitField, PasswordField, FieldList, TextAreaField
 from wtforms.validators import DataRequired, URL
-from flask_ckeditor import CKEditorField
 
 
 class RegisterForm(FlaskForm):
     username = StringField("Username:", validators=[DataRequired()])
+    user_bio = TextAreaField("User Bio (Coding experience, languages you know, etc):", validators=[])
     password = PasswordField("Password:", validators=[DataRequired()])
     re_enter_pass = PasswordField("Re-Enter Password:", validators=[DataRequired()])
     submit_user = SubmitField("Submit")
@@ -24,7 +24,7 @@ class SearchForm(FlaskForm):
 
 class PostProjectForm(FlaskForm):
     title = StringField("Title:", validators=[DataRequired()])
-    description = CKEditorField("Description:", validators=[DataRequired()])
+    description = TextAreaField("Description:", validators=[DataRequired()])
     languages_used = FieldList(StringField(""), min_entries=3)
     frameworks_or_libraries = FieldList(StringField(""), min_entries=3)
     hosted_url = StringField("Hosted project url:", validators=[URL()])
@@ -34,7 +34,7 @@ class PostProjectForm(FlaskForm):
 
 class PostBugForm(FlaskForm):
     title = StringField("Title:", validators=[DataRequired()])
-    description = CKEditorField("Description:", validators=[DataRequired()])
-    steps_to_recreate = CKEditorField("Steps to recreate bug:", validators=[DataRequired()])
+    description = TextAreaField("Description:", validators=[DataRequired()])
+    steps_to_recreate = TextAreaField("Steps to recreate bug:", validators=[DataRequired()])
     error_url = StringField("Link to error (if available):")
     submit_bug = SubmitField("Submit")

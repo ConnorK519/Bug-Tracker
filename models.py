@@ -1,5 +1,5 @@
 from sqlalchemy.orm import relationship, DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Integer, String, Text, ForeignKey, desc
+from sqlalchemy import Integer, String, Text, ForeignKey, Boolean
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
 from flask_login import UserMixin
@@ -48,7 +48,25 @@ class User(UserMixin, db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String, unique=True)
     hashed_password: Mapped[str] = mapped_column(String)
-    # user_bio: Mapped[str] = mapped_column(Text)
-    # coding_languages: Mapped[str] = mapped_column(String)
+    user_bio: Mapped[str] = mapped_column(Text)
     projects = relationship("Project", back_populates="manager", cascade="all,delete, delete-orphan")
     bugs_reported = relationship("Bug", back_populates="reporter", cascade="all,delete, delete-orphan")
+
+
+class Role(db.Model):
+    __tablename__ = "roles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    update_status: Mapped[bool] = mapped_column(Boolean)
+    update_priority: Mapped[bool] = mapped_column(Boolean)
+    delete_bug: Mapped[bool] = mapped_column(Boolean)
+    delete_members_from_project: Mapped[bool] = mapped_column(Boolean)
+
+
+class UserRole(db.Model):
+    __tablename__ = "user_roles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    role_id: Mapped[int] = mapped_column(Integer, ForeignKey("roles.id"))
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id"))
+    has_accepted: Mapped[bool] = mapped_column(Boolean)

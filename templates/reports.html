@@ -2,15 +2,28 @@
 <body>
 <div class="container">
 {% if has_reported: %}
-{% for report in reports: %}
-    <div class="card layeredBox">
-        <h2 style="margin-left: 1.5rem;">{{ report.title }}</h2>
-        <p style="margin-left: 1.5rem; text-wrap: pretty;">
-            {{ report.description }}
+{% for bug in bugs: %}
+ <div class="card layeredBox">
+     <div style=" background-color: lightblue; width: 100%; display: flex;">
+        <h4 style="margin-left: 1rem; color: white; white-space: nowrap;">Bug: {{ bug.title }}</h4>
+         <div class="headerBox">
+             {% if current_user.id == bug.reporter_id %}
+             <a title="Edit Bug" href="{{ url_for('update_bug', bug_id=bug.id) }}" class="navLinks" style="align-items: center; margin-right: 0.3rem;">📋</a>
+         <a title="Delete Bug" href="{{ url_for('delete_bug_by_id', bug_id=bug.id) }}" class="navLinks" style="align-items: center; margin-right: 1rem;">🗙</a>
+             {% endif %}
+         </div>
+     </div>
+       <p style="margin: 1.2rem; text-wrap: pretty;">
+         Posted: {{ bug.date_posted }} By: {{ bug.reporter.username }}
+         <br/>
+         <br/>
+         Description:
+           <br/>
+           {{ bug.description }}
             <br/>
-            <br/>
-            posted: {{ report.date_posted }}
-        </p>
+           <br/>
+           Status: {{ bug.status }} ----- Priority: {{ bug.priority_level }}
+     </p>
     </div>
 {% endfor %}
 {% else: %}

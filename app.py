@@ -2,7 +2,7 @@ from flask import Flask, render_template, redirect, url_for
 from flask_login import login_user, LoginManager, current_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import desc
-from forms import RegisterForm, LoginForm, SearchForm, PostProjectForm, PostBugForm
+from forms import RegisterForm, LoginForm, SearchForm, PostProjectForm, PostBugForm, InviteForm
 from datetime import datetime
 from models import db, Bug, Project, User, Role, UserRole
 from dotenv import load_dotenv
@@ -26,9 +26,10 @@ def load_user(user_id):
 
 with app.app_context():
     db.create_all()
-    roles = db.session.execute(db.select(Role)).scalars().all()
-    if not len(roles):
-        roles = [
+    test_roles = db.session.execute(db.select(Role)).scalars().all()
+    test_users = db.session.execute(db.select(User)).scalars().all()
+    if not len(test_roles):
+        test_roles = [
             Role(name="tester", update_status=False, update_priority=False, delete_bug=False,
                  delete_members_from_project=False),
             Role(name="developer", update_status=True, update_priority=False, delete_bug=False,
@@ -36,8 +37,21 @@ with app.app_context():
             Role(name="admin", update_status=True, update_priority=True, delete_bug=True,
                  delete_members_from_project=True)
         ]
-        db.session.add_all(roles)
-        db.session.commit()
+        db.session.add_all(test_roles)
+    if not len(test_users):
+        test_users = [
+            User(username="test-user-1", hashed_password=generate_password_hash("123"), user_bio="C++, Java"),
+            User(username="test-user-2", hashed_password=generate_password_hash("123"),
+                 user_bio="JavaScript, Rust"),
+            User(username="test-user-3", hashed_password=generate_password_hash("123"),
+                 user_bio="C#, Python"),
+            User(username="test-user-4", hashed_password=generate_password_hash("123"),
+                 user_bio="C#, Python"),
+            User(username="test-user-5", hashed_password=generate_password_hash("123"),
+                 user_bio="C#, Python")
+        ]
+        db.session.add_all(test_users)
+    db.session.commit()
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -60,10 +74,34 @@ def home_page():
 # ----------------------------------------------------------------------------------------------
 
 
-@app.route("/users", methods=["GET", "POST"])
+@app.route("/users/<int:project_id>", methods=["GET", "POST"])
 @login_required
-def get_users():
-    users = db.session.execute(db.select(User.id, User.username, User.user_bio)).scalars().all()
+def invite_users_to_project(project_id):
+    project = db.get_or_404(Project, project_id)
+    users = db.session.execute(db.select(User.id, User.username, User.user_bio).where(User.id != current_user.id).where(
+        ~User.roles.any(UserRole.project_id == project_id))).all()
+    search_form = SearchForm()
+    invite_form = InviteForm(project_id=project_id)
+    if current_user.id != project.manager_id:
+        return redirect(url_for("home_page"))
+    if search_form.validate_on_submit():
+        search = f"%{search_form.search.data}%"
+        users = db.session.execute(
+            db.select(User.id, User.username, User.user_bio).where(User.id != current_user.id).where(
+                User.username.like(search) | User.user_bio.like(search)).where(
+                ~User.roles.any(project_id == project_id))).all()
+        return render_template("users.html", users=users, search_form=search_form, invite_form=invite_form,
+                               project_id=project_id)
+    if invite_form.validate_on_submit():
+        user_id = invite_form.user_id.data
+        role_id = invite_form.role.data
+        user = db.get_or_404(User, user_id)
+        invite = UserRole(user_id=user_id, role_id=role_id, project_id=project_id)
+        db.session.add(invite)
+        db.session.commit()
+        return redirect(url_for("invite_users_to_project", project_id=project_id))
+    return render_template("users.html", users=users, search_form=search_form, invite_form=invite_form,
+                           project_id=project_id)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -129,11 +167,11 @@ def login():
 @app.route("/reports")
 @login_required
 def reports_by_user_id():
-    reports = current_user.bugs_reported
+    bugs = current_user.bugs_reported
     has_reported = False
-    if len(reports):
+    if len(bugs):
         has_reported = True
-    return render_template("reports.html", reports=reports, has_reported=has_reported)
+    return render_template("reports.html", bugs=bugs, has_reported=has_reported)
 
 
 @app.route("/projects")
@@ -157,6 +195,8 @@ def logout():
 @login_required
 def delete_user():
     user = current_user
+    if current_user.id != user.id:
+        return redirect(url_for("home_page"))
     db.session.delete(user)
     db.session.commit()
     logout_user()
@@ -199,6 +239,7 @@ def project_page(project_id):
 @login_required
 def post_project():
     form = PostProjectForm()
+    is_edit = False
     if form.validate_on_submit():
         manager_id = current_user.id
         title = form.title.data
@@ -218,7 +259,7 @@ def post_project():
         db.session.add(new_project)
         db.session.commit()
         return redirect(url_for("home_page"))
-    return render_template("new_project.html", form=form)
+    return render_template("new_project.html", form=form, is_edit=is_edit)
 
 
 @app.route("/project/<int:project_id>/update", methods=["GET", "POST"])
@@ -227,6 +268,9 @@ def update_project(project_id):
     form = PostProjectForm()
     project_to_update = db.get_or_404(Project, project_id)
     original_name = project_to_update.title
+    is_edit = True
+    if current_user.id != project_to_update.manager_id:
+        return redirect(url_for("home_page"))
     if form.validate_on_submit():
         if original_name != form.title.data:
             existing_project = db.session.execute(db.select(Project).where(Project.title == form.title.data)).scalar()
@@ -240,11 +284,16 @@ def update_project(project_id):
         project_to_update.repo_url = form.repo_url.data
         db.session.commit()
         return redirect(url_for("project_page", project_id=project_id))
+    languages_used_list = project_to_update.languages_used.split("~|,-%-,|~")
+    frameworks_or_libraries_list = project_to_update.frameworks_or_libraries.split("~|,-%-,|~")
     form.title.data = project_to_update.title
     form.description.data = project_to_update.description
+    for num in range(3):
+        form.languages_used[num].data = languages_used_list[num]
+        form.frameworks_or_libraries[num].data = frameworks_or_libraries_list[num]
     form.hosted_url.data = project_to_update.hosted_url
     form.repo_url.data = project_to_update.repo_url
-    return render_template("update_project.html", project_id=project_id, form=form)
+    return render_template("new_project.html", form=form, project_id=project_id, is_edit=is_edit)
 
 
 @app.route("/delete-project/<int:project_id>")
@@ -272,10 +321,11 @@ def project_page_search(project_id, search):
     return render_template("project_page.html", project=project, form=form)
 
 
-@app.route("/projects/<project_id>/post-bug", methods=["GET", "POST"])
+@app.route("/projects/<int:project_id>/post-bug", methods=["GET", "POST"])
 @login_required
 def post_bug(project_id):
     form = PostBugForm()
+    is_edit = False
     if form.validate_on_submit():
         reporter_id = current_user.id
         title = form.title.data
@@ -291,7 +341,7 @@ def post_bug(project_id):
         db.session.add(new_bug)
         db.session.commit()
         return redirect(url_for("project_page", project_id=project_id))
-    return render_template("new_bug.html", form=form, project_id=project_id)
+    return render_template("new_bug.html", form=form, project_id=project_id, is_edit=is_edit)
 
 
 @app.route("/bug/<int:bug_id>/update", methods=["GET", "POST"])
@@ -299,7 +349,15 @@ def post_bug(project_id):
 def update_bug(bug_id):
     form = PostBugForm()
     bug_to_update = db.get_or_404(Bug, bug_id)
+    original_name = bug_to_update.title
+    is_edit = True
+    if current_user.id != bug_to_update.reporter_id:
+        return redirect(url_for("home_page"))
     if form.validate_on_submit():
+        if original_name != form.title.data:
+            existing_project = db.session.execute(db.select(Bug).where(Bug.title == form.title.data)).scalar()
+            if existing_project:
+                return render_template("new_bug.html", bug_id=bug_id, form=form, is_edit=is_edit)
         bug_to_update.title = form.title.data
         bug_to_update.description = form.description.data
         bug_to_update.steps_to_reproduce = form.steps_to_recreate.data
@@ -310,7 +368,7 @@ def update_bug(bug_id):
     form.description.data = bug_to_update.description
     form.steps_to_recreate.data = bug_to_update.steps_to_recreate
     form.error_url.data = bug_to_update.error_url
-    return render_template("update_bug.html", bug_id=bug_id, form=form)
+    return render_template("new_bug.html", bug_id=bug_id, form=form, is_edit=is_edit)
 
 
 @app.route("/delete-bug/<int:bug_id>")
@@ -322,6 +380,53 @@ def delete_bug_by_id(bug_id):
         db.session.delete(bug_to_delete)
         db.session.commit()
         return redirect(url_for("project_page", project_id=project_id))
+
+
+# ----------------------------------------------------------------------------------------------
+
+# Role endpoints
+
+# ----------------------------------------------------------------------------------------------
+
+
+@app.route("/user/role-invites")
+@login_required
+def get_user_invites():
+    invites = db.session.execute(db.select(UserRole).where(UserRole.user_id == current_user.id)).scalars().all()
+    current_roles = [role for role in invites if role.has_accepted]
+    pending_roles = [role for role in invites if not role.has_accepted]
+    return render_template("invites.html", current_roles=current_roles, pending_roles=pending_roles)
+
+
+@app.route("/project/members/<int:project_id>")
+@login_required
+def get_project_members(project_id):
+    invites = db.session.execute(db.select(UserRole).where(UserRole.project_id == project_id)).scalars().all()
+    current_roles = [role for role in invites if role.has_accepted]
+    pending_roles = [role for role in invites if not role.has_accepted]
+    return render_template("project-members.html", current_roles=current_roles, pending_roles=pending_roles)
+
+
+@app.route("/role/accept/<int:role_id>")
+@login_required
+def accept_role(role_id):
+    user_role_to_update = db.get_or_404(UserRole, role_id)
+    if current_user.id != user_role_to_update.user_id:
+        return redirect(url_for("get_user_invites"))
+    user_role_to_update.has_accepted = True
+    db.session.commit()
+    return redirect(url_for("get_user_invites"))
+
+
+@app.route("/role/delete/<int:role_id>")
+@login_required
+def delete_user_role(role_id):
+    user_role_to_delete = db.get_or_404(UserRole, role_id)
+    if current_user.id != user_role_to_delete.user_id:
+        return redirect(url_for("get_user_invites"))
+    db.session.delete(user_role_to_delete)
+    db.session.commit()
+    return redirect(url_for("get_user_invites"))
 
 
 if __name__ == '__main__':

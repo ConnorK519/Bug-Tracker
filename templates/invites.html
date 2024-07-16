@@ -1,0 +1,37 @@
+{% include "header.html" %}
+<body>
+<div class="container">
+     <div class="card layeredBox">
+         <h3 style="margin-left: 1rem;">Current Roles</h3>
+     </div>
+    {% for role in current_roles: %}
+      <div class="card layeredBox">
+            <p style="margin-left: 1rem;">Project Name: {{ role.project.title }}
+              <br/>
+              <br/>
+              Role: {{ role.role.name }}
+          </p>
+              <a href="{{ url_for('delete_user_role', role_id=role.id) }}" style="margin-left: 1rem;">Leave Project</a>
+          <br/>
+          <br/>
+      </div>
+    {% endfor %}
+      <div class="card layeredBox">
+         <h3 style="margin-left: 1rem;">Pending Roles</h3>
+     </div>
+     {% for role in pending_roles: %}
+      <div class="card layeredBox">
+          <p style="margin-left: 1rem;">Project Name: {{ role.project.title }}
+              <br/>
+              <br/>
+              Role: {{ role.role.name }}
+          </p>
+              <a href="{{ url_for('accept_role', role_id=role.id) }}" style="margin-left: 1rem;">Accept Invite</a>
+              <a href="{{ url_for('delete_user_role', role_id=role.id) }}" style="margin-left: 1rem;">Decline Invite</a>
+          <br/>
+          <br/>
+      </div>
+    {% endfor %}
+</div>
+</body>
+{% include "footer.html" %}

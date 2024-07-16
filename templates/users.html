@@ -1,11 +1,23 @@
 {% include "header.html" %}
 <body>
 <div class="container">
-    <form action="{{ url_for('invite_user_to_project', project_id=project_id, ) }}" method="post" class="searchBar card layeredBox" style="margin-top: 1rem; margin-bottom: 1rem; display: flex; flex-direction: row; justify-content: center;">
-{{ form.csrf_token }}
-{{ form.search }}
-        {{ form.submit_search }}
+    <form action="{{ url_for('invite_users_to_project', project_id=project_id ) }}" method="post" class="searchBar card layeredBox" style="margin-top: 1rem; margin-bottom: 1rem; display: flex; flex-direction: row; justify-content: center;">
+{{ search_form.csrf_token }}
+{{ search_form.search }}
+        {{ search_form.submit_search }}
 </form>
+    {% for user in users: %}
+    <div class="card layeredBox">
+        <h3 style="margin-left: 1rem; color: black; white-space: nowrap;">{{ user.username }}</h3>
+        <p style="margin-left: 1rem; color: black; white-space: nowrap;">{{ user.user_bio }}</p>
+        <form action="{{ url_for('invite_users_to_project', project_id=project_id ) }}" method="post" style="margin-left: 1rem;">
+            {{ invite_form.csrf_token }}
+            {{ invite_form.user_id(value=user.id, type="hidden") }}
+            {{ invite_form.role }}
+            {{ invite_form.submit_invite }}
+        </form>
+    </div>
+    {% endfor %}
 </div>
 </body>
 {% include "footer.html" %}

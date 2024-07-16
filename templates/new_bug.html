@@ -1,9 +1,17 @@
 {% include "header.html" %}
 <body>
 <div class="layeredBox formCard">
+    {% if is_edit: %}
+<form action="{{ url_for('update_bug', bug_id=bug_id) }}" method="post" class="formContent">
+    {% else: %}
 <form action="{{ url_for('post_bug', project_id=project_id) }}" method="post" class="formContent">
+    {% endif %}
     {{ form.csrf_token }}
+    {% if is_edit: %}
+    <h2>Update bug details</h2>
+    {% else: %}
     <h2>Enter bug details</h2>
+    {% endif %}
       <label class="formLabel">
         {{ form.title.label.text }}
     </label>

@@ -49,6 +49,7 @@ class User(UserMixin, db.Model):
     username: Mapped[str] = mapped_column(String, unique=True)
     hashed_password: Mapped[str] = mapped_column(String)
     user_bio: Mapped[str] = mapped_column(Text)
+    roles = relationship("UserRole", back_populates="user", cascade="all,delete, delete-orphan")
     projects = relationship("Project", back_populates="manager", cascade="all,delete, delete-orphan")
     bugs_reported = relationship("Bug", back_populates="reporter", cascade="all,delete, delete-orphan")
 
@@ -69,4 +70,7 @@ class UserRole(db.Model):
     role_id: Mapped[int] = mapped_column(Integer, ForeignKey("roles.id"))
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id"))
-    has_accepted: Mapped[bool] = mapped_column(Boolean)
+    role = relationship("Role", backref="role")
+    project = relationship("Project", backref="project")
+    user = relationship("User", back_populates="roles")
+    has_accepted: Mapped[bool] = mapped_column(Boolean, default=False)

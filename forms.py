@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, PasswordField, FieldList, TextAreaField
+from wtforms import StringField, SubmitField, PasswordField, FieldList, TextAreaField, SelectField, IntegerField, HiddenField
 from wtforms.validators import DataRequired, URL
 
 
@@ -38,3 +38,10 @@ class PostBugForm(FlaskForm):
     steps_to_recreate = TextAreaField("Steps to recreate bug:", validators=[DataRequired()])
     error_url = StringField("Link to error (if available):")
     submit_bug = SubmitField("Submit")
+
+
+class InviteForm(FlaskForm):
+    role = SelectField("Role", choices=[(1, "Tester"), (2, "Developer"), (3, "Admin")])
+    user_id = IntegerField()
+    project_id = HiddenField()
+    submit_invite = SubmitField("Invite")

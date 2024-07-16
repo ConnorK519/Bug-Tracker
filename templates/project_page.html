@@ -3,11 +3,13 @@
 <div class="container">
  <div class="card layeredBox">
      <div style="background-color: lightblue; width: 100%; display: flex;">
-        <h3 style="margin-left: 1rem; color: white; white-space: nowrap">Project name: {{ project.title }}</h3>
+        <h2 style="margin-left: 1rem; color: white; white-space: nowrap">Project name: {{ project.title }}</h2>
              <div class="headerBox">
                  {% if current_user.id == project.manager_id: %}
-         <a href="{{ url_for('update_project', project_id=project.id) }}" class="navLinks" style="align-items: center;">Edit Project</a>
-            <a href="{{ url_for('delete_project_by_id', project_id=project.id) }}" class="navLinks" style="align-items: center;">Delete Project</a>
+                 <a title="Project Members" href="{{ url_for('get_project_members', project_id=project.id) }}" class="navLinks" style="align-items: center; margin-right: 0.3rem;">👥</a>
+                 <a title="Invite users" href="{{ url_for('invite_users_to_project', project_id=project.id) }}" class="navLinks" style="align-items: center; margin-right: 0.3rem;">📨</a>
+         <a title="Edit Project" href="{{ url_for('update_project', project_id=project.id) }}" class="navLinks" style="align-items: center; margin-right: 0.3rem;">📋</a>
+            <a title="Delete Project" href="{{ url_for('delete_project_by_id', project_id=project.id) }}" class="navLinks" style="align-items: center; margin-right: 1rem;">🗙</a>
          {% endif %}
          </div>
      </div>

@@ -178,6 +178,10 @@ margin: 0.5rem;
 width: fit-content;
 }
 
+#submit_update {
+width: fit-content;
+}
+
 
 /* media queries for sizing */
 
@@ -284,6 +288,14 @@ font-size: 0.4rem;
 
 ul {
 font-size: 0.4rem;
+}
+
+.bugDetails {
+font-size: 0.4rem;
+}
+
+select {
+font-size: 0.6rem;
 }
 
 }

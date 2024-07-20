@@ -14,11 +14,14 @@
               <br/>
               Role: {{ role.role.name }}
           </p>
-              <a href="{{ url_for('delete_user_role', role_id=role.id) }}" style="margin-left: 1rem;">Remove Member</a>
+          {% if perm_to_delete and role.role.name != "admin" or is_manager: %}
+              <a href="{{ url_for('delete_user_role', role_id=role.id, action='remove') }}" style="margin-left: 1rem;">Remove Member</a>
+             <br/>
           <br/>
-          <br/>
+          {% endif %}
       </div>
     {% endfor %}
+    {% if perm_to_delete: %}
       <div class="card layeredBox">
          <h3 style="margin-left: 1rem;">Pending Roles</h3>
      </div>
@@ -32,11 +35,14 @@
               <br/>
               Role: {{ role.role.name }}
           </p>
-              <a href="{{ url_for('delete_user_role', role_id=role.id) }}" style="margin-left: 1rem;">Cancel Invite</a>
+          {% if role.role.name != "admin" or is_manager: %}
+              <a href="{{ url_for('delete_user_role', role_id=role.id, action='remove') }}" style="margin-left: 1rem;">Cancel Invite</a>
+            <br/>
           <br/>
-          <br/>
+          {% endif %}
       </div>
     {% endfor %}
+    {% endif %}
 </div>
 </body>
 {% include "footer.html" %}

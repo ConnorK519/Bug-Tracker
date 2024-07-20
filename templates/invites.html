@@ -11,7 +11,7 @@
               <br/>
               Role: {{ role.role.name }}
           </p>
-              <a href="{{ url_for('delete_user_role', role_id=role.id) }}" style="margin-left: 1rem;">Leave Project</a>
+              <a href="{{ url_for('delete_user_role', role_id=role.id, action='leave') }}" style="margin-left: 1rem;">Leave Project</a>
           <br/>
           <br/>
       </div>
@@ -27,7 +27,7 @@
               Role: {{ role.role.name }}
           </p>
               <a href="{{ url_for('accept_role', role_id=role.id) }}" style="margin-left: 1rem;">Accept Invite</a>
-              <a href="{{ url_for('delete_user_role', role_id=role.id) }}" style="margin-left: 1rem;">Decline Invite</a>
+              <a href="{{ url_for('delete_user_role', role_id=role.id, action='decline') }}" style="margin-left: 1rem;">Decline Invite</a>
           <br/>
           <br/>
       </div>

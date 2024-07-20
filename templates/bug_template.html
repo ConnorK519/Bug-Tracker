@@ -2,9 +2,15 @@
      <div style=" background-color: lightblue; width: 100%; display: flex;">
         <h4 style="margin-left: 1rem; color: white; white-space: nowrap;">Bug: {{ bug.title }}</h4>
          <div class="headerBox">
-             {% if current_user.id == bug.reporter_id %}
+             {% if current_user.id == bug.reporter_id: %}
              <a title="Edit Bug" href="{{ url_for('update_bug', bug_id=bug.id) }}" class="navLinks" style="align-items: center; margin-right: 0.3rem;">📋</a>
          <a title="Delete Bug" href="{{ url_for('delete_bug_by_id', bug_id=bug.id) }}" class="navLinks" style="align-items: center; margin-right: 1rem;">🗙</a>
+             {% elif user_perms: %}
+             {% if user_perms.role.delete_members_from_project: %}
+             <a title="Delete Bug" href="{{ url_for('delete_bug_by_id', bug_id=bug.id) }}" class="navLinks" style="align-items: center; margin-right: 1rem;">🗙</a>
+             {% endif %}
+             {% elif current_user.id == project.manager_id: %}
+             <a title="Delete Bug" href="{{ url_for('delete_bug_by_id', bug_id=bug.id) }}" class="navLinks" style="align-items: center; margin-right: 1rem;">🗙</a>
              {% endif %}
          </div>
      </div>
@@ -32,9 +38,40 @@
            <br/>
            No Url
            {%endif %}
-               <br/>
-         <br/>
-           <br/>
-           Status: {{ bug.status }} ----- Priority: {{ bug.priority_level }}
      </p>
+     <div style="margin: 1.2rem; text-wrap: pretty;">
+         {% if current_user.id == project.manager_id: %}
+         <form action="{{ url_for('project_page', project_id=project.id, ) }}" method="post" class="bugDetails">
+             {{ form.csrf_token }}
+             {{ bug_form.bug_id(value=bug.id, type="hidden") }}
+             Status: {{ bug_form.status }} <br/> Priority: {{ bug_form.priority }} <br/> {{ bug_form.submit_update }}
+         </form>
+         {% elif user_perms: %}
+         <form action="{{ url_for('project_page', project_id=project.id, ) }}" method="post" class="bugDetails">
+             {{ form.csrf_token }}
+             {{ bug_form.bug_id(value=bug.id, type="hidden") }}
+             Status:
+             {% if user_perms.role.update_status: %}
+             {{ bug_form.status }}
+             {% else: %}
+             {{ bug.status }}
+             {% endif %}
+             <br/>
+             Priority:
+             {% if user_perms.role.update_priority: %}
+             {{ bug_form.priority }}
+             {% else: %}
+             {{ bug.priority_level }}
+             {% endif %}
+             {% if user_perms.role.update_status or user_perms.role.update_priority: %}
+             <br/>
+             {{ bug_form.submit_update }}
+             {% endif %}
+         </form>
+         {% else: %}
+          <p>
+             Status: {{ bug.status }} ----- Priority: {{ bug.priority_level }}
+         </p>
+         {% endif %}
+     </div>
     </div>

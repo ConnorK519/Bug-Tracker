@@ -45,3 +45,10 @@ class InviteForm(FlaskForm):
     user_id = IntegerField()
     project_id = HiddenField()
     submit_invite = SubmitField("Invite")
+
+
+class BugStatusAndPriorityForm(FlaskForm):
+    priority = SelectField("Priority", choices=[("Not yet assigned", "Not yet assigned"), ("Very low", "Very low"), ("Low", "Low"), ("Mid", "Mid"), ("High", "High"), ("Very high", "Very high")])
+    status = SelectField("Status", choices=[("Pending", "Pending"), ("In Progress", "In Progress"), ("Testing", "Testing"), ("Fixed", "Fixed")])
+    bug_id = IntegerField()
+    submit_update = SubmitField("Update")

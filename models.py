@@ -39,6 +39,7 @@ class Project(db.Model):
     hosted_url: Mapped[str] = mapped_column(String, nullable=True)
     repo_url: Mapped[str] = mapped_column(String, nullable=False)
     date_posted: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    project_roles = relationship("UserRole", back_populates="project", cascade="all,delete, delete-orphan")
     bugs = relationship("Bug", order_by=Bug.date_posted, back_populates="project", cascade="all,delete, delete-orphan")
     manager = relationship("User", back_populates="projects")
 
@@ -71,6 +72,6 @@ class UserRole(db.Model):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id"))
     role = relationship("Role", backref="role")
-    project = relationship("Project", backref="project")
+    project = relationship("Project", back_populates="project_roles")
     user = relationship("User", back_populates="roles")
     has_accepted: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -35,7 +35,7 @@ retrieves and displays all bugs the current user has reported with information o
 
 **/projects**
 
-retrieves the currently logged in users projects with information on them.
+retrieves the currently logged-in users projects with information on them.
 
 **/logout**
 
@@ -150,3 +150,41 @@ This endpoint allows managing project roles. Project managers and authorized use
 
 ---
 
+**Bugs:**
+
+    id: bug identification primary key.
+    project_id: stores the foreign key that ties the bug to the project.
+    reporter_id: stores the foreign key that ties the bug to the user.
+    title: stores the title of the bug.
+    description: stores a short explaination of what happens when the bug occurs.
+    steps_to_recreate: stores the steps to recreate the bug for developer understanding of potential causes.
+    error_url: stores the erroring url if applicable.
+    priority_level: stores the severity of the bug.
+    status: stores a notice of the status of the current bug.
+    date_posted: stores the date posted for context and display purposes.
+    project: defines a relationship between the bug and the project it's assigned to.
+    reporter: defines a relationship between the bug and the user who reported it.
+
+---
+
+**Roles:**
+
+    id: role identification primary key.
+    name: name of the role.
+    update_status: permission flag
+    update_priority: permission flag
+    delete_bug: permission flag
+    delete_members_from_project: permission flag
+
+---
+
+**User Roles:**
+
+    id: user role identification primary key.
+    role_id: stores the foreign key that ties the user to their role in the project.
+    user_id: stores the foreign key that ties the user to a project and their role in the project.
+    project_id: stores the foreign key that defines the project link.
+    role: defines a relationship to the role assigned to the user.
+    project: defines a relationship to the project the role is being assigned to.
+    user: defines a relationship to the user the role is being assigned to.
+    has_accepted: Acts as a check to see if the user has accepted the role offered to the project.

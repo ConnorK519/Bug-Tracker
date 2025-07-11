@@ -17,7 +17,7 @@
     {% endblock %}
 </head>
 <body>
-<header>
+<header class="titleBox">
     <a href="{{ url_for('home_page') }}">
     <img src="{{ url_for('static', filename='assets/img/moth.png') }}" class="logo"/>
     </a>
@@ -27,8 +27,8 @@
     {% if current_user.is_authenticated: %}
     <p class="loggedIn">Logged in as:{{ current_user.username }}</p>
       <p class="headerBox">
-          <a href="{{ url_for('update_user') }}" style="margin: 0.8rem;" class="navLinks">Update Account</a>
-        <a href="{{ url_for('delete_user') }}" style="margin: 0.8rem; margin-right: 2rem;" class="navLinks">Delete Account</a>
+          <a href="{{ url_for('update_user') }}" class="navLinks">Update Account</a>
+        <a href="{{ url_for('delete_user') }}" class="navLinks">Delete Account</a>
     </p>
      {% endif %}
 </header>

@@ -1,14 +1,88 @@
+/* global */
+
+* {
+margin: 0;
+padding: 0;
+}
+
+body {
+margin: 0%;
+font-family: sans-serif;
+width: 100vw;
+height: 100vh;
+overflow-y: scroll;
+overflow-x: hidden;
+}
+
+ul {
+margin: 0%;
+}
+
+.layeredBox {
+    box-shadow:
+      0 1px 1px hsl(0deg 0% 0% / 0.075),
+      0 2px 2px hsl(0deg 0% 0% / 0.075),
+      0 4px 4px hsl(0deg 0% 0% / 0.075),
+      0 8px 8px hsl(0deg 0% 0% / 0.075),
+      0 16px 16px hsl(0deg 0% 0% / 0.075)
+    ;
+ }
+
+.container {
+width: 100vw;
+display: flex;
+flex-direction: column;
+align-items: center;
+}
+
+.searchBar {
+width: 100%;
+margin-top: 1rem;
+margin-bottom: 1rem;
+display: flex;
+flex-direction: row;
+justify-content: center;
+}
+
+#search {
+width: 80%;
+margin-top: 1rem;
+margin-bottom: 1rem;
+}
+
+#submit_search {
+width: fit-content;
+height: auto;
+margin-top: 1rem;
+margin-bottom: 1rem;
+}
+
+.card {
+width: 80%;
+text-align: left;
+margin: 1rem;
+padding: 1rem;
+border: 1px solid lightblue;
+}
+
+.cardLinks {
+font-family: sans-serif;
+}
+
+li {
+margin: 0.5rem;
+}
+
 /* header */
 
-header {
+.titleBox {
 position: relative;
 display: flex;
 flex-shrink: 0;
 align-items: center;
 width: 100vw;
-height: 5rem;
+height: fit-content;
 background-color: lightblue;
-margin-top: 1rem;
 }
 
 nav {
@@ -62,6 +136,7 @@ width: 100%;
 display: flex;
 justify-content: right;
 align-items: center;
+padding-right: 20px;
 }
 
 /* footer */
@@ -74,69 +149,6 @@ background-color: lightblue;
 margin-top: 5rem;
 }
 
-/* global */
-
-body {
-margin: 0%;
-font-family: sans-serif;
-width: 100vw;
-height: 100vh;
-overflow-y: scroll;
-overflow-x: hidden;
-}
-
-ul {
-margin: 0%;
-}
-
-.layeredBox {
-    box-shadow:
-      0 1px 1px hsl(0deg 0% 0% / 0.075),
-      0 2px 2px hsl(0deg 0% 0% / 0.075),
-      0 4px 4px hsl(0deg 0% 0% / 0.075),
-      0 8px 8px hsl(0deg 0% 0% / 0.075),
-      0 16px 16px hsl(0deg 0% 0% / 0.075)
-    ;
- }
-
-.container {
-width: 100vw;
-display: flex;
-flex-direction: column;
-align-items: center;
-}
-
-.searchBar {
-width: 100%;
-}
-
-#search {
-width: 80%;
-margin-top: 1rem;
-margin-bottom: 1rem;
-}
-
-#submit_search {
-width: fit-content;
-height: auto;
-margin-top: 1rem;
-margin-bottom: 1rem;
-}
-
-.card {
-width: 80%;
-text-align: left;
-margin: 1rem;
-border: 1px solid lightblue;
-}
-
-.cardLinks {
-font-family: sans-serif;
-}
-
-li {
-margin: 0.5rem;
-}
 
 /* forms */
 
@@ -180,6 +192,15 @@ width: fit-content;
 
 #submit_update {
 width: fit-content;
+}
+
+
+/* project page */
+
+.project-card {
+background-color: lightblue;
+width: 100%;
+display: flex;
 }
 
 
@@ -297,5 +318,4 @@ font-size: 0.4rem;
 select {
 font-size: 0.6rem;
 }
-
 }

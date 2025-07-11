@@ -572,4 +572,4 @@ def delete_user_role(role_id, action):
 
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)

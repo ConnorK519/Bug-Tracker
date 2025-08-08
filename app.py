@@ -1,9 +1,9 @@
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, flash, jsonify
 from flask_login import login_user, LoginManager, current_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import desc, exc
-from forms import RegisterForm, LoginForm, SearchForm, PostProjectForm, PostBugForm, InviteForm, BugStatusAndPriorityForm
-from datetime import datetime
+from forms import RegisterForm, LoginForm, SearchForm, PostProjectForm, PostBugForm, InviteForm, \
+    BugStatusAndPriorityForm, UpdateUserForm, DeleteUserForm, DeleteProjectForm, DeleteConfirmForm
 from models import db, Bug, Project, User, Role, UserRole
 from dotenv import load_dotenv
 import os
@@ -22,6 +22,14 @@ login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(user_id):
     return db.get_or_404(User, user_id)
+
+
+@app.context_processor
+def add_user_choices():
+    delete_user_form = None
+    if current_user.is_authenticated:
+        delete_user_form = DeleteUserForm()
+    return dict(delete_user_form=delete_user_form)
 
 
 with app.app_context():
@@ -57,20 +65,18 @@ with app.app_context():
 
 @app.route("/", methods=["GET", "POST"])
 def home_page():
+    form = SearchForm()
     try:
-        form = SearchForm()
         if form.validate_on_submit():
-            # adds wildcards for sql query to get all matches.
-            search = f"%{form.search.data}%"
+            search = form.search.data
             # redirects to a search endpoint so the url including the search can be shared.
             return redirect(url_for("search_projects", search=search))
         projects = db.session.execute(db.select(Project).order_by(desc(Project.date_posted))).scalars().all()
-        is_projects = False
-        if len(projects):
-            is_projects = True
-        return render_template("index.html", form=form, projects=projects, is_projects=is_projects)
-    except exc.IntegrityError:
-        db.session.rollback()
+        return render_template("index.html", form=form, projects=projects)
+    except Exception as e:
+        flash("An error occurred!", "error")
+        print(e)
+        return redirect(url_for("home_page"))
 
 
 # ----------------------------------------------------------------------------------------------
@@ -80,28 +86,240 @@ def home_page():
 # ----------------------------------------------------------------------------------------------
 
 
-@app.route("/users/<int:project_id>", methods=["GET", "POST"])
+@app.route("/user/register", methods=["GET", "POST"])
+def register():
+    form = RegisterForm()
+    try:
+        if form.validate_on_submit():
+            username = form.username.data
+            user = db.session.execute(db.select(User).where(User.username == username)).scalar()
+            password = form.password.data
+            re_enter_pass = form.re_enter_pass.data
+            if user:
+                flash("Username in use!", "error")
+                return redirect(url_for("register"))
+            if password != re_enter_pass:
+                flash("Passwords do not match!", "error")
+                return redirect(url_for("register"))
+            # salts and hashes the password.
+            hashed_password = generate_password_hash(password)
+            new_user = User(username=username, user_bio=form.user_bio.data, hashed_password=hashed_password)
+            db.session.add(new_user)
+            db.session.commit()
+            login_user(new_user)
+            flash("Sign up successful!", "success")
+            return redirect(url_for("home_page"))
+        return render_template("register.html", form=form)
+    except exc.IntegrityError:
+        db.session.rollback()
+        flash("Invalid inputs!", "error")
+        return redirect(url_for("register"))
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("register"))
+
+
+@app.route("/user/update-account", methods=["GET", "POST"])
+@login_required
+def update_user():
+    form = UpdateUserForm()
+    try:
+        original_name = current_user.username
+        if form.validate_on_submit():
+            # checks for change in the users name.
+            if original_name != form.username.data:
+                # checks if the new name is in use.
+                existing_user = db.session.execute(db.select(User).where(User.username == form.username.data).where(
+                    User.id != current_user.id)).scalar()
+                if existing_user:
+                    flash("Username in use!", "error")
+                    return redirect(url_for("update_user"))
+                current_user.username = form.username.data
+            if current_user.user_bio != form.user_bio.data:
+                current_user.user_bio = form.user_bio.data
+            if form.password.data != form.re_enter_pass.data:
+                flash("Passwords do not match!", "error")
+                return redirect(url_for("update_user"))
+            if form.password.data:
+                hashed_password = generate_password_hash(form.password.data)
+                current_user.hashed_password = hashed_password
+            db.session.commit()
+            flash("User info updated!", "success")
+            return redirect(url_for("update_user"))
+        # pre-populates the form fields.
+        form.username.data = current_user.username
+        form.user_bio.data = current_user.user_bio
+        return render_template("update_user.html", form=form)
+    except exc.IntegrityError:
+        db.session.rollback()
+        flash("Invalid inputs!", "error")
+        return redirect(url_for("update_user"))
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("update_user"))
+
+
+@app.route("/user/login", methods=["GET", "POST"])
+def login():
+    form = LoginForm()
+    try:
+        if form.validate_on_submit():
+            username = form.username.data
+            password = form.password.data
+            user = db.session.execute(db.select(User).where(User.username == username)).scalar()
+            if not user or not check_password_hash(user.hashed_password, password):
+                flash("Incorrect username or password!", "error")
+                return redirect(url_for("login"))
+            login_user(user)
+            flash("Login successful!", "success")
+            return redirect(url_for("home_page"))
+        return render_template("login.html", form=form)
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("login"))
+
+
+@app.route("/user/reports")
+@login_required
+def reports_by_user_id():
+    try:
+        bugs = current_user.bugs_reported
+        return render_template("reports.html", bugs=bugs)
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("home_page"))
+
+
+@app.route("/user/projects")
+@login_required
+def projects_by_user_id():
+    try:
+        projects = current_user.projects
+        return render_template("projects.html", projects=projects)
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("home_page"))
+
+
+@app.route("/user/logout")
+@login_required
+def logout():
+    try:
+        logout_user()
+        flash("Successfully logged out!", "success")
+        return redirect(url_for("home_page"))
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("home_page"))
+
+
+@app.route("/user/delete-account", methods=["POST"])
+@login_required
+def delete_user():
+    delete_user_form = DeleteUserForm()
+    try:
+        if not delete_user_form.validate_on_submit():
+            flash("Form submission failed. Please try again.", "error")
+            return redirect(url_for("home_page"))
+        password = delete_user_form.confirm_password.data
+        if not check_password_hash(current_user.hashed_password, password):
+            flash("Incorrect password!", "error")
+            return redirect(url_for("home_page"))
+        db.session.delete(current_user)
+        db.session.commit()
+        logout_user()
+        flash("User successfully deleted!", "success")
+        return redirect(url_for("home_page"))
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("home_page"))
+
+
+# ----------------------------------------------------------------------------------------------
+
+# Project endpoints
+
+# ----------------------------------------------------------------------------------------------
+
+
+@app.route("/project/<int:project_id>", methods=["GET", "POST"])
+@app.route("/project/<int:project_id>/<search>", methods=["GET", "POST"])
+def project_page(project_id, search=None):
+    search_form = SearchForm()
+    bug_form = BugStatusAndPriorityForm()
+    deleteProjectForm = DeleteProjectForm()
+    delete_bug_form = DeleteConfirmForm()
+    user_perms = None
+    try:
+        if current_user.is_authenticated:
+            user_perms = db.session.execute(db.select(UserRole).where(
+                (UserRole.project_id == project_id) & (UserRole.user_id == current_user.id) & (
+                    UserRole.has_accepted))).scalar()
+        if search_form.validate_on_submit():
+            search = search_form.search.data
+            return redirect(url_for("project_page", project_id=project_id, search=search))
+        project = db.get_or_404(Project, project_id)
+        bugs = project.bugs
+        if search:
+            search_form.search.data = search
+            search_pattern = f"%{search}%"
+            bugs = db.session.execute(db.select(Bug).where(
+                (Bug.project_id == project_id) &
+                ((Bug.title.like(search_pattern)) |
+                 (Bug.description.like(search_pattern)) |
+                 (Bug.steps_to_recreate.like(search_pattern)) |
+                 (Bug.error_url.like(search_pattern)) |
+                 (Bug.priority_level.like(search_pattern)) |
+                 (Bug.status.like(search_pattern))))).scalars().all()
+        # splits the string stored in the database back into a list for display.
+        languages_used = project.languages_used.split("~|,-%-,|~")
+        frameworks_or_libraries = project.frameworks_or_libraries.split("~|,-%-,|~")
+        return render_template("project_page.html", project=project, bugs=bugs, languages_used=languages_used,
+                               frameworks_or_libraries=frameworks_or_libraries, form=search_form, user_perms=user_perms,
+                               bug_form=bug_form, deleteProjectForm=deleteProjectForm, delete_bug_form=delete_bug_form)
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("home_page"))
+
+
+@app.route("/project/<int:project_id>/invite-users", methods=["GET", "POST"])
 @login_required
 def invite_users_to_project(project_id):
+    users = []
+    search_form = SearchForm()
+    # sets up the hidden project_id field for each user's invite form.
+    invite_form = InviteForm(project_id=project_id)
     try:
         # checks the project exists
         project = db.get_or_404(Project, project_id)
         # blocks the users access if not permitted.
         if current_user.id != project.manager_id:
+            flash("You do not have permission to invite users to this project!")
             return redirect(url_for("home_page"))
         # retrieves none sensitive user data where they are not currently invited or on the current project.
-        users = db.session.execute(
-            db.select(User.id, User.username, User.user_bio).where(User.id != current_user.id).where(
-                ~User.roles.any(UserRole.project_id == project_id))).all()
-        search_form = SearchForm()
-        # sets up the hidden project_id field for each user's invite form.
-        invite_form = InviteForm(project_id=project_id)
+        baseQuery = db.select(User.id, User.username, User.user_bio).where(User.id != current_user.id)
         if search_form.validate_on_submit():
             search = f"%{search_form.search.data}%"
             users = db.session.execute(
-                db.select(User.id, User.username, User.user_bio).where(User.id != current_user.id).where(
+                baseQuery.where(
                     User.username.like(search) | User.user_bio.like(search)).where(
-                    ~User.roles.any(project_id == project_id))).all()
+                    ~User.roles.any(UserRole.project_id == project_id))).all()
             return render_template("users.html", users=users, search_form=search_form, invite_form=invite_form,
                                    project_id=project_id)
         if invite_form.validate_on_submit():
@@ -112,199 +330,170 @@ def invite_users_to_project(project_id):
             invite = UserRole(user_id=user_id, role_id=role_id, project_id=project_id)
             db.session.add(invite)
             db.session.commit()
+            flash(f"Successfully invited {user.username} to the project!", "success")
             return redirect(url_for("invite_users_to_project", project_id=project_id))
+        users = db.session.execute(
+            baseQuery.where(
+                ~User.roles.any(UserRole.project_id == project_id))).all()
         return render_template("users.html", users=users, search_form=search_form, invite_form=invite_form,
                                project_id=project_id)
     except exc.IntegrityError:
         db.session.rollback()
+        flash("This user is already on the project.", "error")
+        return redirect(url_for("invite_users_to_project", project_id=project_id))
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("invite_users_to_project", project_id=project_id))
 
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
+@app.route("/project/<int:project_id>/update", methods=["GET", "POST"])
+@login_required
+def update_project(project_id):
+    is_edit = True
+    form = PostProjectForm()
     try:
-        form = RegisterForm()
+        project_to_update = db.get_or_404(Project, project_id)
+        original_name = project_to_update.title
+        if current_user.id != project_to_update.manager_id:
+            flash("You don't have permission to edit this project!", "error")
+            return redirect(url_for("home_page"))
         if form.validate_on_submit():
-            username = form.username.data
-            user = db.session.execute(db.select(User).where(User.username == username)).scalar()
-            password = form.password.data
-            re_enter_pass = form.re_enter_pass.data
-            if user:
-                return redirect(url_for("register"))
-            if password != re_enter_pass:
-                return redirect(url_for("register"))
-            # salts and hashes the password.
-            hashed_password = generate_password_hash(password)
-            new_user = User(username=username, user_bio=form.user_bio.data, hashed_password=hashed_password)
-            db.session.add(new_user)
+            # checks if there is a change in the project title.
+            if original_name != form.title.data:
+                existing_project = db.session.execute(
+                    db.select(Project).where(Project.title == form.title.data)).scalar()
+                # checks if there is already a project with the new title.
+                if existing_project:
+                    flash("Project title in use!", "error")
+                    return redirect(url_for("update_project", project_id=project_id))
+                project_to_update.title = form.title.data
+            if project_to_update.description != form.description.data:
+                project_to_update.description = form.description.data
+            if project_to_update.languages_used != "~|,-%-,|~".join(form.languages_used.data):
+                project_to_update.languages_used = "~|,-%-,|~".join(form.languages_used.data)
+            if project_to_update.frameworks_or_libraries != "~|,-%-,|~".join(form.frameworks_or_libraries.data):
+                project_to_update.frameworks_or_libraries = "~|,-%-,|~".join(form.frameworks_or_libraries.data)
+            if project_to_update.hosted_url != form.hosted_url.data:
+                project_to_update.hosted_url = form.hosted_url.data
+            if project_to_update.repo_url != form.repo_url.data:
+                project_to_update.repo_url = form.repo_url.data
             db.session.commit()
-            login_user(new_user)
-            return redirect(url_for("home_page"))
-        return render_template("register.html", form=form)
+            flash("Project successfully updated!", "success")
+            return redirect(url_for("project_page", project_id=project_id))
+        # splits the string stored in the database back into a list to pre-populate to form fields.
+        languages_used_list = project_to_update.languages_used.split("~|,-%-,|~")
+        frameworks_or_libraries_list = project_to_update.frameworks_or_libraries.split("~|,-%-,|~")
+        form.title.data = project_to_update.title
+        form.description.data = project_to_update.description
+        # Might refactor to be dealt with in html.
+        for num in range(3):
+            form.languages_used[num].data = languages_used_list[num]
+            form.frameworks_or_libraries[num].data = frameworks_or_libraries_list[num]
+        form.hosted_url.data = project_to_update.hosted_url
+        form.repo_url.data = project_to_update.repo_url
+        return render_template("new_project.html", form=form, project_id=project_id, is_edit=is_edit)
     except exc.IntegrityError:
         db.session.rollback()
+        flash("Invalid inputs!", "error")
+        return redirect(url_for("project_page", project_id=project_id))
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("project_page", project_id=project_id))
 
 
-@app.route("/user/update-account", methods=["GET", "POST"])
+@app.route("/project/<int:project_id>/bug/add", methods=["GET", "POST"])
 @login_required
-def update_user():
+def post_bug(project_id):
+    is_edit = False
+    form = PostBugForm()
     try:
-        form = RegisterForm()
-        original_name = current_user.username
         if form.validate_on_submit():
-            # checks for change in the users name.
-            if original_name != form.username.data:
-                # checks if the new name is in use.
-                existing_user = db.session.execute(db.select(User).where(User.username == form.username.data)).scalar()
-                if existing_user:
-                    return redirect(url_for("update_user"))
-                current_user.username = form.username.data
-                current_user.user_bio = form.user_bio.data
-            if form.password.data != form.re_enter_pass.data:
-                return redirect(url_for("update_user"))
-            if form.password.data:
-                hashed_password = generate_password_hash(form.password.data)
-                current_user.hashed_password = hashed_password
+            reporter_id = current_user.id
+            title = form.title.data
+            description = form.description.data
+            steps_to_recreate = form.steps_to_recreate.data
+            error_url = form.error_url.data
+            DEFAULT_PRIORITY = "Not yet assigned"
+            DEFAULT_STATUS = "Pending"
+            new_bug = Bug(project_id=project_id, reporter_id=reporter_id, title=title, description=description,
+                          steps_to_recreate=steps_to_recreate, error_url=error_url, priority_level=DEFAULT_PRIORITY,
+                          status=DEFAULT_STATUS)
+            db.session.add(new_bug)
             db.session.commit()
-            return redirect(url_for("home_page"))
-        # pre-populates the form fields.
-        form.username.data = current_user.username
-        form.user_bio.data = current_user.user_bio
-        return render_template("update_user.html", form=form)
+            flash("Bug posted successfully!", "success")
+            return redirect(url_for("project_page", project_id=project_id))
+        return render_template("new_bug.html", form=form, project_id=project_id, is_edit=is_edit)
     except exc.IntegrityError:
         db.session.rollback()
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    try:
-        form = LoginForm()
-        if form.validate_on_submit():
-            username = form.username.data
-            password = form.password.data
-            user = db.session.execute(db.select(User).where(User.username == username)).scalar()
-            if user:
-                # checks the provided pass against the stored hash.
-                if check_password_hash(user.hashed_password, password):
-                    login_user(user)
-                    return redirect(url_for("home_page"))
-            return redirect(url_for("login"))
-        return render_template("login.html", form=form)
-    except exc.IntegrityError:
+        flash("Invalid inputs!", "error")
+        return render_template("new_bug.html", form=form, project_id=project_id, is_edit=is_edit)
+    except Exception as e:
+        print(e)
         db.session.rollback()
+        flash("An error occurred!", "error")
+        return render_template("new_bug.html", form=form, project_id=project_id, is_edit=is_edit)
 
 
-@app.route("/reports")
+@app.route("/project/<int:project_id>/delete", methods=["POST"])
 @login_required
-def reports_by_user_id():
+def delete_project_by_id(project_id):
+    deleteProjectForm = DeleteProjectForm()
     try:
-        bugs = current_user.bugs_reported
-        has_reported = False
-        if len(bugs):
-            has_reported = True
-        return render_template("reports.html", bugs=bugs, has_reported=has_reported)
-    except exc.IntegrityError:
-        db.session.rollback()
-
-
-@app.route("/projects")
-@login_required
-def projects_by_user_id():
-    try:
-        projects = current_user.projects
-        is_projects = False
-        if len(projects):
-            is_projects = True
-        return render_template("projects.html", projects=projects, is_projects=is_projects)
-    except exc.IntegrityError:
-        db.session.rollback()
-
-
-@app.route("/logout")
-@login_required
-def logout():
-    try:
-        logout_user()
-        return redirect(url_for("home_page"))
-    except exc.IntegrityError:
-        db.session.rollback()
-
-
-@app.route("/user/delete-account")
-@login_required
-def delete_user():
-    try:
-        user = current_user
-        # ensures the user is the owner of the account to delete.
-        if current_user.id != user.id:
-            return redirect(url_for("home_page"))
-        db.session.delete(user)
+        project_to_delete = db.get_or_404(Project, project_id)
+        # ensures only the project manager can delete the project.
+        if current_user.id != project_to_delete.manager_id:
+            flash("You do not have permission to delete this project!", "error")
+            return redirect(url_for("project_page", project_id=project_id))
+        if not deleteProjectForm.validate_on_submit():
+            flash("Form submission failed. Please try again.", "error")
+            return redirect(url_for("project_page", project_id=project_id))
+        if deleteProjectForm.confirm_project.data != project_to_delete.title:
+            flash("The project name you entered did not match. Please try again.", "error")
+            return redirect(url_for("project_page", project_id=project_id))
+        db.session.delete(project_to_delete)
         db.session.commit()
-        logout_user()
+        flash("Project successfully deleted!", "success")
         return redirect(url_for("home_page"))
-    except exc.IntegrityError:
+    except Exception as e:
+        print(e)
         db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("project_page", project_id=project_id))
 
 
-# ----------------------------------------------------------------------------------------------
-
-# Project endpoints
-
-# ----------------------------------------------------------------------------------------------
-
-
-@app.route("/search-projects/<search>", methods=["GET", "POST"])
+@app.route("/projects/search/<search>", methods=["GET", "POST"])
 def search_projects(search):
     try:
         form = SearchForm()
-        # uses the search to return relevant projects.
-        projects = db.session.execute(
-            db.select(Project).where(Project.title.like(search) | Project.description.like(search)).order_by(
-                desc(Project.date_posted))).scalars().all()
-        is_projects = False
-        if len(projects):
-            is_projects = True
-        return render_template("index.html", form=form, projects=projects, is_projects=is_projects)
-    except exc.IntegrityError:
-        db.session.rollback()
-
-
-@app.route("/project/<int:project_id>", methods=["GET", "POST"])
-def project_page(project_id):
-    try:
-        form = SearchForm()
-        bug_form = BugStatusAndPriorityForm()
-        user_perms = None
-        if current_user.is_authenticated:
-            user_perms = db.session.execute(db.select(UserRole).where(
-                (UserRole.project_id == project_id) & (UserRole.user_id == current_user.id) & (
-                    UserRole.has_accepted))).scalar()
+        # adds wildcards for sql query to get all matches.
         if form.validate_on_submit():
             search = form.search.data
-            return redirect(url_for("project_page_search", project_id=project_id, search=search))
-        if bug_form.validate_on_submit():
-            bug_id = bug_form.bug_id.data
-            bug_to_update = db.get_or_404(Bug, bug_id)
-            status = bug_form.status.data
-            priority = bug_form.priority.data
-            bug_to_update.status = status
-            bug_to_update.priority_level = priority
-            db.session.commit()
-            return redirect(url_for("project_page", project_id=project_id))
-        project = db.get_or_404(Project, project_id)
-        # splits the string stored in the database back into a list for display.
-        languages_used = project.languages_used.split("~|,-%-,|~")
-        frameworks_or_libraries = project.frameworks_or_libraries.split("~|,-%-,|~")
-        return render_template("project_page.html", project=project, languages_used=languages_used,
-                               frameworks_or_libraries=frameworks_or_libraries, form=form, user_perms=user_perms, bug_form=bug_form)
-    except exc.IntegrityError:
+            return redirect(url_for("search_projects", search=search))
+        # uses the search to return relevant projects.
+        form.search.data = search
+        search = f"%{search}%"
+        projects = db.session.execute(
+            db.select(Project).where(
+                Project.title.like(search) | Project.description.like(search) | Project.languages_used.like(
+                    search) | Project.frameworks_or_libraries.like(search)).order_by(
+                desc(Project.date_posted))).scalars().all()
+        return render_template("index.html", form=form, projects=projects)
+    except Exception as e:
+        print(e)
         db.session.rollback()
+        flash("An error occurred!", "error")
+        return redirect(url_for("home_page"))
 
 
 @app.route("/projects/add-new-project", methods=["GET", "POST"])
 @login_required
 def post_project():
+    form = PostProjectForm()
     try:
-        form = PostProjectForm()
         is_edit = False
         if form.validate_on_submit():
             manager_id = current_user.id
@@ -314,76 +503,29 @@ def post_project():
             frameworks_or_libraries = "~|,-%-,|~".join(form.frameworks_or_libraries.data)
             hosted_url = form.hosted_url.data
             repo_url = form.repo_url.data
-            date_posted = datetime.now().date()
             existing_project = db.session.execute(db.select(Project).where(Project.title == title)).scalar()
             # checks if there is already a project with the provided title.
             if existing_project:
+                flash("A project with this title already exists. Please choose a different title!", "error")
                 return render_template("new_project.html", form=form)
             new_project = Project(manager_id=manager_id, title=title, description=description,
                                   languages_used=languages_used, frameworks_or_libraries=frameworks_or_libraries,
                                   hosted_url=hosted_url,
-                                  repo_url=repo_url, date_posted=date_posted)
+                                  repo_url=repo_url)
             db.session.add(new_project)
             db.session.commit()
+            flash("Project successfully posted!", "success")
             return redirect(url_for("home_page"))
         return render_template("new_project.html", form=form, is_edit=is_edit)
     except exc.IntegrityError:
         db.session.rollback()
-
-
-@app.route("/project/<int:project_id>/update", methods=["GET", "POST"])
-@login_required
-def update_project(project_id):
-    try:
-        form = PostProjectForm()
-        project_to_update = db.get_or_404(Project, project_id)
-        original_name = project_to_update.title
-        is_edit = True
-        if current_user.id != project_to_update.manager_id:
-            return redirect(url_for("home_page"))
-        if form.validate_on_submit():
-            # checks if there is a change in the project title.
-            if original_name != form.title.data:
-                existing_project = db.session.execute(
-                    db.select(Project).where(Project.title == form.title.data)).scalar()
-                # checks if there is already a project with the new title.
-                if existing_project:
-                    return redirect(url_for("update_project", project_id=project_id))
-            project_to_update.title = form.title.data
-            project_to_update.description = form.description.data
-            project_to_update.languages_used = "~|,-%-,|~".join(form.languages_used.data)
-            project_to_update.frameworks_or_libraries = "~|,-%-,|~".join(form.frameworks_or_libraries.data)
-            project_to_update.hosted_url = form.hosted_url.data
-            project_to_update.repo_url = form.repo_url.data
-            db.session.commit()
-            return redirect(url_for("project_page", project_id=project_id))
-        # splits the string stored in the database back into a list to pre-populate to form fields.
-        languages_used_list = project_to_update.languages_used.split("~|,-%-,|~")
-        frameworks_or_libraries_list = project_to_update.frameworks_or_libraries.split("~|,-%-,|~")
-        form.title.data = project_to_update.title
-        form.description.data = project_to_update.description
-        for num in range(3):
-            form.languages_used[num].data = languages_used_list[num]
-            form.frameworks_or_libraries[num].data = frameworks_or_libraries_list[num]
-        form.hosted_url.data = project_to_update.hosted_url
-        form.repo_url.data = project_to_update.repo_url
-        return render_template("new_project.html", form=form, project_id=project_id, is_edit=is_edit)
-    except exc.IntegrityError:
+        flash("Invalid inputs!", "error")
+        return render_template("new_project.html", form=form)
+    except Exception as e:
+        print(e)
         db.session.rollback()
-
-
-@app.route("/delete-project/<int:project_id>")
-@login_required
-def delete_project_by_id(project_id):
-    try:
-        project_to_delete = db.get_or_404(Project, project_id)
-        # ensures only the project manager can delete the project.
-        if current_user.id == project_to_delete.manager_id:
-            db.session.delete(project_to_delete)
-            db.session.commit()
-            return redirect(url_for("home_page"))
-    except exc.IntegrityError:
-        db.session.rollback()
+        flash("An error occurred!", "error")
+        return render_template("new_project.html", form=form)
 
 
 # ----------------------------------------------------------------------------------------------
@@ -392,68 +534,17 @@ def delete_project_by_id(project_id):
 
 # ----------------------------------------------------------------------------------------------
 
-@app.route("/project/<int:project_id>/<search>")
-def project_page_search(project_id, search):
-    try:
-        form = SearchForm()
-        bug_form = BugStatusAndPriorityForm()
-        project = db.get_or_404(Project, project_id)
-        user_perms = None
-        if current_user.is_authenticated:
-            user_perms = db.session.execute(db.select(UserRole).where(
-                (UserRole.project_id == project_id) & (UserRole.user_id == current_user.id) & (
-                    UserRole.has_accepted))).scalar()
-        # filters the list of bugs by the search term.
-        bugs = [bug for bug in project.bugs if search in bug.title or search in bug.description]
-        project.bugs = bugs
-        return render_template("project_page.html", project=project, form=form, user_perms=user_perms, bug_form=bug_form)
-    except exc.IntegrityError:
-        db.session.rollback()
-
-
-@app.route("/projects/<int:project_id>/post-bug", methods=["GET", "POST"])
-@login_required
-def post_bug(project_id):
-    try:
-        form = PostBugForm()
-        is_edit = False
-        if form.validate_on_submit():
-            reporter_id = current_user.id
-            title = form.title.data
-            description = form.description.data
-            steps_to_recreate = form.steps_to_recreate.data
-            error_url = form.error_url.data
-            priority_level = "Not yet assigned"
-            status = "Pending"
-            date_posted = datetime.now().date()
-            new_bug = Bug(project_id=project_id, reporter_id=reporter_id, title=title, description=description,
-                          steps_to_recreate=steps_to_recreate, error_url=error_url, priority_level=priority_level,
-                          status=status, date_posted=date_posted)
-            db.session.add(new_bug)
-            db.session.commit()
-            return redirect(url_for("project_page", project_id=project_id))
-        return render_template("new_bug.html", form=form, project_id=project_id, is_edit=is_edit)
-    except exc.IntegrityError:
-        db.session.rollback()
-
 
 @app.route("/bug/<int:bug_id>/update", methods=["GET", "POST"])
 @login_required
 def update_bug(bug_id):
+    is_edit = True
+    form = PostBugForm()
+    bug_to_update = db.get_or_404(Bug, bug_id)
     try:
-        form = PostBugForm()
-        bug_to_update = db.get_or_404(Bug, bug_id)
-        original_name = bug_to_update.title
-        is_edit = True
         if current_user.id != bug_to_update.reporter_id:
             return redirect(url_for("home_page"))
         if form.validate_on_submit():
-            # checks for change in the project title.
-            if original_name != form.title.data:
-                existing_project = db.session.execute(db.select(Bug).where(Bug.title == form.title.data)).scalar()
-                # checks the new name is available.
-                if existing_project:
-                    return render_template("new_bug.html", bug_id=bug_id, form=form, is_edit=is_edit)
             bug_to_update.title = form.title.data
             bug_to_update.description = form.description.data
             bug_to_update.steps_to_reproduce = form.steps_to_recreate.data
@@ -467,24 +558,78 @@ def update_bug(bug_id):
         return render_template("new_bug.html", bug_id=bug_id, form=form, is_edit=is_edit)
     except exc.IntegrityError:
         db.session.rollback()
+        flash("Invalid inputs!", "error")
+        return render_template("new_bug.html", bug_id=bug_id, form=form, is_edit=is_edit)
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        flash("An error occurred!", "error")
+        return render_template("new_bug.html", bug_id=bug_id, form=form, is_edit=is_edit)
 
 
-@app.route("/delete-bug/<int:bug_id>")
+@app.route("/api/bug/<int:bug_id>/update-details", methods=["POST"])
+@login_required
+def update_bug_details(bug_id):
+    bug_form = BugStatusAndPriorityForm()
+    try:
+        bugToUpdate = db.get_or_404(Bug, bug_id)
+        userPerms = db.session.execute(db.select(UserRole).where(
+            (UserRole.user_id == current_user.id) & (UserRole.project_id == bugToUpdate.project_id))).scalar()
+        if bug_form.validate_on_submit():
+            newStatus = bug_form.status.data
+            newPriority = bug_form.priority.data
+            isStatusUpdate = newStatus != bugToUpdate.status and newStatus != "Default"
+            isPriorityUpdate = newPriority != bugToUpdate.priority_level and newPriority != "Default"
+            isManager = current_user.id == bugToUpdate.project.manager_id
+            if not userPerms and not isManager:
+                return jsonify({"msg": "You do not have permission to update this project!"}), 403
+            elif userPerms:
+                if isStatusUpdate and not userPerms.role.update_status:
+                    return jsonify({"msg": "You do not have permission to update the status!"}), 403
+                if isPriorityUpdate and not userPerms.role.update_priority:
+                    return jsonify({"msg": "You do not have permission to update the priority!"}), 403
+            response = {"msg": "Update Successful!"}
+            if isStatusUpdate and newStatus != "Default":
+                bugToUpdate.status = newStatus
+                response["newStatus"] = newStatus
+            if isPriorityUpdate and newPriority != "Default":
+                bugToUpdate.priority_level = newPriority
+                response["newPriority"] = newPriority
+            db.session.commit()
+            return jsonify(response), 200
+        return jsonify({"msg": "Invalid inputs"}), 400
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        return jsonify({"msg": "A server error occurred!"}), 500
+
+
+@app.route("/api/bug/<int:bug_id>/delete", methods=["POST"])
 @login_required
 def delete_bug_by_id(bug_id):
     try:
+        delete_bug_form = DeleteConfirmForm()
         bug_to_delete = db.get_or_404(Bug, bug_id)
         project_id = bug_to_delete.project.id
         # gets the current users permissions for the project.
         user_perms = db.session.execute(db.select(UserRole).where(
             (UserRole.project_id == project_id) & (UserRole.user_id == current_user.id))).scalar()
         # ensures only the reporter of the bug or an authorised user can delete bugs.
-        if current_user.id == bug_to_delete.reporter_id or current_user.id == bug_to_delete.project.manager_id or user_perms.role.delete_bug:
-            db.session.delete(bug_to_delete)
-            db.session.commit()
-            return redirect(url_for("project_page", project_id=project_id))
+        can_delete = (current_user.id == bug_to_delete.reporter_id or
+                      current_user.id == bug_to_delete.project.manager_id or
+                      (user_perms and user_perms.role.delete_bug))
+        if not can_delete:
+            return jsonify({"msg": "You do not have permission to delete this bug!"}), 403
+        db.session.delete(bug_to_delete)
+        db.session.commit()
+        return jsonify({"msg": "Update Successful!"}), 204
     except exc.IntegrityError:
         db.session.rollback()
+        return jsonify({"msg": "Failed to delete bug due to a database integrity error."}), 500
+    except Exception as e:
+        print(e)
+        db.session.rollback()
+        return jsonify({"msg": "A server error occurred!"}), 500
 
 
 # ----------------------------------------------------------------------------------------------
@@ -516,7 +661,8 @@ def get_project_members(project_id):
             (UserRole.project_id == project_id) & (UserRole.user_id == current_user.id) & (
                 UserRole.has_accepted))).scalar()
         project = db.get_or_404(Project, project_id)
-        invites = db.session.execute(db.select(UserRole).where((UserRole.project_id == project_id) & (UserRole.user_id != current_user.id))).scalars().all()
+        invites = db.session.execute(db.select(UserRole).where(
+            (UserRole.project_id == project_id) & (UserRole.user_id != current_user.id))).scalars().all()
         current_roles = [role for role in invites if role.has_accepted]
         pending_roles = [role for role in invites if not role.has_accepted]
         perm_to_delete = False
@@ -526,7 +672,8 @@ def get_project_members(project_id):
             is_manager = True
         if user_perms:
             perm_to_delete = user_perms.role.delete_members_from_project
-        return render_template("project-members.html", current_roles=current_roles, pending_roles=pending_roles, perm_to_delete=perm_to_delete, is_manager=is_manager)
+        return render_template("project_members.html", current_roles=current_roles, pending_roles=pending_roles,
+                               perm_to_delete=perm_to_delete, is_manager=is_manager)
     except exc.IntegrityError:
         db.session.rollback()
 

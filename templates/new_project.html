@@ -1,5 +1,5 @@
-{% include "header.html" %}
-<body>
+{% extends "base.html" %}
+{% block content %}
 <div class="layeredBox formCard">
     {% if is_edit: %}
 <form action="{{ url_for('update_project', project_id=project_id) }}" method="post" class="formContent">
@@ -43,5 +43,4 @@
   <br/>
 </form>
 </div>
-</body>
-{% include "footer.html" %}
+{% endblock %}

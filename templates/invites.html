@@ -1,5 +1,5 @@
-{% include "header.html" %}
-<body>
+{% extends "base.html" %}
+{% block content %}
 <div class="container">
      <div class="card layeredBox">
          <h3 style="margin-left: 1rem;">Current Roles</h3>
@@ -33,5 +33,4 @@
       </div>
     {% endfor %}
 </div>
-</body>
-{% include "footer.html" %}
+{% endblock %}

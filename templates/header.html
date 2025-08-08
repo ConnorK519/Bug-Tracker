@@ -1,22 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bug Tracker</title>
-    {% block styles %}
-        <link
-      rel="icon"
-      type="image/x-icon"
-      href="{{ url_for('static', filename='assets/icons8-moth-64.png') }}"
-    />
-     <link
-      href="{{ url_for('static', filename='css/styles.css') }}"
-      rel="stylesheet"
-    />
-    {% endblock %}
-</head>
-<body>
 <header class="titleBox">
     <a href="{{ url_for('home_page') }}">
     <img src="{{ url_for('static', filename='assets/img/moth.png') }}" class="logo"/>
@@ -28,7 +9,7 @@
     <p class="loggedIn">Logged in as:{{ current_user.username }}</p>
       <p class="headerBox">
           <a href="{{ url_for('update_user') }}" class="navLinks">Update Account</a>
-        <a href="{{ url_for('delete_user') }}" class="navLinks">Delete Account</a>
+        <a href="#" class="navLinks" id="deleteUserAnchor">Delete Account</a>
     </p>
      {% endif %}
 </header>
@@ -58,5 +39,3 @@
     </a>
     {% endif %}
 </nav>
-</body>
-</html>

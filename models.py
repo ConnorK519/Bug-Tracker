@@ -40,7 +40,7 @@ class Project(db.Model):
     repo_url: Mapped[str] = mapped_column(String, nullable=False)
     date_posted: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     project_roles = relationship("UserRole", back_populates="project", cascade="all,delete, delete-orphan")
-    bugs = relationship("Bug", order_by=Bug.date_posted, back_populates="project", cascade="all,delete, delete-orphan")
+    bugs = relationship("Bug", order_by=Bug.date_posted.desc(), back_populates="project", cascade="all,delete, delete-orphan")
     manager = relationship("User", back_populates="projects")
 
 

@@ -1,5 +1,5 @@
-{% include "header.html" %}
-<body>
+{% extends "base.html" %}
+{% block content %}
 <div class="layeredBox formCard">
 <form action="{{ url_for('register') }}" method="post" class="formContent">
   {{ form.csrf_token }}
@@ -28,5 +28,4 @@
   <br/>
 </form>
 </div>
-</body>
-{% include "footer.html" %}
+{% endblock %}

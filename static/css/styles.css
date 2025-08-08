@@ -73,6 +73,29 @@ li {
 margin: 0.5rem;
 }
 
+.screenOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  color: white;
+  text-align: center;
+}
+
+.screenOverlay.active {
+  display: flex;
+}
+
+.hidden {
+display: none;
+}
+
 /* header */
 
 .titleBox {

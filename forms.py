@@ -1,13 +1,44 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, PasswordField, FieldList, TextAreaField, SelectField, IntegerField, HiddenField
-from wtforms.validators import DataRequired, URL
+from wtforms import StringField, SubmitField, PasswordField, FieldList, TextAreaField, SelectField, IntegerField, \
+    HiddenField
+from wtforms.validators import DataRequired, URL, EqualTo, InputRequired, Length, Optional
 
 
 class RegisterForm(FlaskForm):
-    username = StringField("Username:", validators=[DataRequired()])
+    username = StringField("Username:", validators=[DataRequired(), Length(min=3, max=15)])
     user_bio = TextAreaField("User Bio (Coding experience, languages you know, etc):", validators=[])
-    password = PasswordField("Password:", validators=[DataRequired()])
-    re_enter_pass = PasswordField("Re-Enter Password:", validators=[DataRequired()])
+    password = PasswordField("Password:", validators=[InputRequired(),
+                                                      Length(min=5, max=20, message="Password Must Be within character "
+                                                                                    "bounds (5-20)!")])
+    re_enter_pass = PasswordField("Re-Enter Password:",
+                                  validators=[InputRequired(), EqualTo('password', message='Passwords '
+                                                                                           'must '
+                                                                                           'match')])
+    submit_user = SubmitField("Submit")
+
+
+class DeleteConfirmForm(FlaskForm):
+    confirm_delete = SubmitField('Delete')
+
+
+class DeleteUserForm(FlaskForm):
+    confirm_password = PasswordField("Enter Your Password to Confirm:", validators=[DataRequired()])
+    submit = SubmitField('Delete User')
+
+
+class DeleteProjectForm(FlaskForm):
+    confirm_project = StringField("Enter Project Name to Confirm:", validators=[DataRequired()])
+    submit = SubmitField('Delete Project')
+
+
+class UpdateUserForm(FlaskForm):
+    username = StringField("Username:", validators=[DataRequired(), Length(min=3, max=15)])
+    user_bio = TextAreaField("User Bio (Coding experience, languages you know, etc):", validators=[])
+    password = PasswordField("Password:", validators=[])
+    re_enter_pass = PasswordField("Re-Enter Password:",
+                                  validators=[EqualTo('password', message='Passwords '
+                                                                          'must '
+                                                                          'match')])
     submit_user = SubmitField("Submit")
 
 
@@ -48,7 +79,12 @@ class InviteForm(FlaskForm):
 
 
 class BugStatusAndPriorityForm(FlaskForm):
-    priority = SelectField("Priority", choices=[("Not yet assigned", "Not yet assigned"), ("Very low", "Very low"), ("Low", "Low"), ("Mid", "Mid"), ("High", "High"), ("Very high", "Very high")])
-    status = SelectField("Status", choices=[("Pending", "Pending"), ("In Progress", "In Progress"), ("Testing", "Testing"), ("Fixed", "Fixed")])
+    priority = SelectField("Priority",
+                           choices=[("Default", "Select Priority"), ("Very low", "Very low"), ("Low", "Low"),
+                                    ("Mid", "Mid"), ("High", "High"), ("Very high", "Very high")],
+                           validators=[Optional()], default="Default")
+    status = SelectField("Status",
+                         choices=[("Default", "Select Status"), ("In Progress", "In Progress"), ("Testing", "Testing"),
+                                  ("Fixed", "Fixed")], validators=[Optional()], default="Default")
     bug_id = IntegerField()
     submit_update = SubmitField("Update")

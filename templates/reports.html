@@ -1,7 +1,6 @@
-{% include "header.html" %}
-<body>
+{% extends "base.html" %}
+{% block content %}
 <div class="container">
-{% if has_reported: %}
 {% for bug in bugs: %}
  <div class="card layeredBox">
      <div style=" background-color: lightblue; width: 100%; display: flex;">
@@ -26,9 +25,5 @@
      </p>
     </div>
 {% endfor %}
-{% else: %}
-
-{% endif %}
 </div>
-</body>
-{% include "footer.html" %}
+{% endblock %}

@@ -1,9 +1,8 @@
-{% include "header.html" %}
-<body>
+{% extends "base.html" %}
+{% block content %}
 <div class="container">
   {% for project in projects: %}
     {% include "project_template.html" %}
     {% endfor %}
 </div>
-</body>
-{% include "footer.html" %}
+{% endblock %}

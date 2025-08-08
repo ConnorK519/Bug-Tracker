@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Tracker</title>
+    {% block styles %}
+        <link
+      rel="icon"
+      type="image/x-icon"
+      href="{{ url_for('static', filename='assets/icons8-moth-64.png') }}"
+    />
+     <link
+      href="{{ url_for('static', filename='css/styles.css') }}"
+      rel="stylesheet"
+    />
+    {% endblock %}
+</head>
+<body>
+{% include "header.html" %}
+<main>
+{% block content %}{% endblock %}
+</main>
+{% if current_user.is_authenticated: %}
+<div class="screenOverlay" id="deleteUserModalBackground">
+    <div class="layeredBox formCard" style="background-color: white; color: black;">
+        <form action="{{ url_for('delete_user') }}" method="post" class="formContent">
+            {{ delete_user_form.csrf_token }}
+            <h2>Are you sure you want to delete your account?</h2>
+            <br/>
+            <br/>
+            <p>Deleting your account is permanent, once done all your projects, bug reports and roles will be deleted.</p>
+            <br/>
+            <br/>
+            {{ delete_user_form.confirm_password.label.text }}
+            {{ delete_user_form.confirm_password }}
+            {{ delete_user_form.submit }}
+            <button id="cancelDeleteUser" style="width: 60%; height: fit-content;">Cancel</button>
+            <br/>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% include "footer.html" %}
+<script src="{{ url_for('static', filename='js/delete_user_modal.js') }}"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
-{% include "header.html" %}
-<body>
+{% extends "base.html" %}
+{% block content %}
 <div class="container">
     <form action="{{ url_for('invite_users_to_project', project_id=project_id ) }}" method="post" class="searchBar card layeredBox" style="margin-top: 1rem; margin-bottom: 1rem; display: flex; flex-direction: row; justify-content: center;">
 {{ search_form.csrf_token }}
@@ -19,5 +19,4 @@
     </div>
     {% endfor %}
 </div>
-</body>
-{% include "footer.html" %}
+{% endblock %}

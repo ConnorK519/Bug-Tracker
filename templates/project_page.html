@@ -1,10 +1,11 @@
-{% include "header.html" %}
-<body>
+{% extends "base.html" %}
+{% block content %}
 <div class="container">
  <div class="card layeredBox">
      <h2>Project name: {{ project.title }}</h2>
      <p>Posted by <strong>{{ project.manager.username }}</strong> on {{ project.date_posted }}</p>
      <p>{{ project.description }}</p>
+     <a title="Delete Project" href="#" class="navLinks" id="deleteProjectAnchor" style="color: black;">🗙</a>
 <!--             <div class="headerBox">-->
 <!--                 {% if current_user.id == project.manager_id: %}-->
 <!--                 <a title="Project Members" href="{{ url_for('get_project_members', project_id=project.id) }}" class="navLinks" style="align-items: center; margin-right: 0.3rem;">👥</a>-->
@@ -15,8 +16,6 @@
 <!--                 <a title="Project Members" href="{{ url_for('get_project_members', project_id=project.id) }}" class="navLinks" style="align-items: center; margin-right: 1rem;">👥</a>-->
 <!--         {% endif %}-->
 <!--         </div>-->
-
-
      <ul>
          Languages:
          {% for language in languages_used: %}
@@ -48,19 +47,61 @@
             <a href="{{ project.repo_url }}" target='_blank' class="card_links">Project repo</a>
      </div>
     </div>
-    <form action="{{ url_for('project_page', project_id=project.id, ) }}" method="post" class="searchBar card layeredBox">
+    <form action="{{ url_for('project_page', project_id=project.id ) }}" method="post" class="searchBar card layeredBox">
 {{ form.csrf_token }}
 {{ form.search }}
     {{ form.submit_search }}
 </form>
+    {% if current_user.id == project.manager_id: %}
+    <div class="screenOverlay" id="deleteProjectModalBackground">
+    <div class="layeredBox formCard" style="background-color: white; color: black;">
+        <form action="{{ url_for('delete_project_by_id', project_id=project.id) }}" method="post" class="formContent">
+            {{ deleteProjectForm.csrf_token }}
+            <h2>Are you sure you want to delete this project?</h2>
+            <br/>
+            <p>Project: {{ project.title }}</p>
+            <br/>
+            <br/>
+            <p>Deleting this project will delete all bugs and roles associated with it.</p>
+            <br/>
+            <br/>
+            {{ deleteProjectForm.confirm_project.label.text }}
+            {{ deleteProjectForm.confirm_project }}
+            {{ deleteProjectForm.submit }}
+            <button id="cancelDeleteProject" style="width: 60%; height: fit-content;">Cancel</button>
+            <br/>
+        </form>
+    </div>
+</div>
+    {% endif %}
+<!--    {% if current_user.id == project.manager_id: %}-->
+    <div class="screenOverlay" id="deleteBugConfirmationModal">
+        <div class="layeredBox formCard" style="background-color: white; color: black;">
+            <form action="" method="post" class="bug_delete_form">
+             {{ delete_bug_form.csrf_token }}
+                <h2>Are you sure you want to delete this Bug?</h2>
+                <br/>
+                <p>Deleting this bug is permanent, continue?</p>
+                <br/>
+                <br/>
+             {{ delete_bug_form.confirm_delete }}
+                <button id="cancelDeleteBug" style="width: 60%; height: fit-content;">Cancel</button>
+                 <br/>
+                <br/>
+         </form>
+        </div>
+    </div>
+<!--    {% endif %}-->
     <div class="card layeredBox" style="height: 3rem; align-items: center; position: relative; display: flex; flex-shrink: 0; align-items: center; text-align: center;">
         <a style="width: 100%; text-align: center;" href="{{ url_for('post_bug', project_id=project.id) }}">
         Post Bug
         </a>
     </div>
-    {% for bug in project.bugs: %}
+    {% for bug in bugs: %}
     {% include "bug_template.html" %}
     {% endfor %}
 </div>
-</body>
-{% include "footer.html" %}
+<script src="{{ url_for('static', filename='js/delete_project_modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/update_bug_status_and_priority.js') }}"></script>
+<script src="{{ url_for('static', filename='js/delete_confirm_modal.js') }} "></script>
+{% endblock %}
